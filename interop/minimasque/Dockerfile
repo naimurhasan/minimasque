@@ -1,4 +1,4 @@
-FROM rust:1.96 AS build
+FROM rust:1.96-bookworm AS build
 WORKDIR /src
 COPY . .
 RUN cargo build --release -p minimasque

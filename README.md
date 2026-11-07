@@ -6,6 +6,13 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/naimurhasan/minimasque/actions/workflows/ci.yml"><img src="https://github.com/naimurhasan/minimasque/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/naimurhasan/minimasque/actions/workflows/interop.yml"><img src="https://github.com/naimurhasan/minimasque/actions/workflows/interop.yml/badge.svg" alt="Interop"></a>
+  <a href="https://github.com/naimurhasan/minimasque/releases/latest"><img src="https://img.shields.io/github/v/release/naimurhasan/minimasque?include_prereleases" alt="Release"></a>
+  <img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue" alt="License">
+</p>
+
+<p align="center">
   <img src="docs/assets/demo.gif" alt="minimasque client --tui forwarding DNS through an HTTP/3 CONNECT-UDP tunnel" width="900">
 </p>
 

@@ -48,7 +48,7 @@ The server writes a self-signed certificate to `minimasque-cert.der`, and the cl
 |---|---|---|
 | Linux | CLI + TUI, proxy and client | [server dashboard](docs/assets/linux-server.png), recorded in Docker with VHS |
 | macOS | CLI + TUI, proxy and client | [server dashboard](docs/assets/macos-server.png), recorded natively with VHS |
-| Windows | CLI cross-compiles (`x86_64-pc-windows-gnu`) | builds a PE32+ console `minimasque.exe`; not yet run on Windows |
+| Windows | CLI cross-compiles (`x86_64-pc-windows-gnu`) | builds a PE32+ console `minimasque.exe`; not yet run on Windows, so the [screenshot](docs/assets/windows-server.png) is a mock-up: the Linux dashboard in a Windows Terminal frame |
 | Android | Jetpack Compose app on `masque-ffi` | [screenshot](docs/assets/android.png) from the Pixel 8 emulator |
 | iOS | SwiftUI app on `masque-ffi` | [screenshot](docs/assets/ios.png) from the iPhone 16 Pro Simulator (iOS 18.6) |
 
@@ -56,10 +56,12 @@ The server writes a self-signed certificate to `minimasque-cert.der`, and the cl
   <tr>
     <td><img src="docs/assets/linux-server.png" alt="minimasque server dashboard on Linux" width="440"></td>
     <td><img src="docs/assets/macos-server.png" alt="minimasque server dashboard on macOS" width="440"></td>
+    <td><img src="docs/assets/windows-server.png" alt="mock-up of the minimasque server dashboard in a Windows Terminal frame" width="440"></td>
   </tr>
   <tr>
     <td align="center">Linux</td>
     <td align="center">macOS</td>
+    <td align="center">Windows (mock-up)</td>
   </tr>
 </table>
 

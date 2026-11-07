@@ -1,0 +1,27 @@
+[package]
+name = "masque-ffi"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[lib]
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+bindgen = ["uniffi/cli"]
+
+[dependencies]
+masque-client = { version = "0.1.0", path = "../masque-client" }
+masque-core = { version = "0.1.0", path = "../masque-core" }
+masque-h3 = { version = "0.1.0", path = "../masque-h3" }
+rustls = { version = "0.23.46", default-features = false, features = ["ring", "std"] }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "net", "sync", "time"] }
+uniffi = "0.32.2"
+
+[dev-dependencies]
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros"] }

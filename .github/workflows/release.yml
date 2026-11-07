@@ -62,9 +62,7 @@ jobs:
           distribution: temurin
           java-version: 21
       - run: cargo install cargo-ndk --locked
-      - run: apps/android/scripts/build-rust.sh
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
+      - run: ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME" apps/android/scripts/build-rust.sh
       - run: ./gradlew --no-daemon assembleDebug
         working-directory: apps/android
       - run: |

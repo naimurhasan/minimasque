@@ -42,6 +42,21 @@ The server writes a self-signed certificate to `minimasque-cert.der`, and the cl
 | `--transport h3` / `h2` | Force one transport |
 | `--template <uri>` | Use another proxy's URI template, e.g. `https://proxy:4433/masque?h={target_host}&p={target_port}` |
 
+## Android
+
+<img src="docs/assets/android.png" alt="MiniMASQUE Android app resolving example.com through an HTTP/3 CONNECT-UDP tunnel" width="300" align="right">
+
+The Android app is a thin Jetpack Compose shell over the same Rust client (`masque-ffi`, loaded through UniFFI and JNA). It opens a tunnel, exposes a local UDP port for other code on the device, resolves a DNS name through the tunnel, and shows the same protocol inspector as the TUI.
+
+```sh
+./apps/android/scripts/build-rust.sh      # cargo-ndk build + Kotlin bindings
+cd apps/android && ./gradlew assembleDebug
+```
+
+On the emulator, run the proxy on the host with `--name 10.0.2.2`, push the certificate with `adb push minimasque-cert.der /sdcard/Download/`, and connect to `10.0.2.2:4433`. Requires the Android SDK and NDK, `cargo install cargo-ndk`, and `rustup target add aarch64-linux-android x86_64-linux-android`.
+
+<br clear="right">
+
 ## How it works
 
 ```mermaid
@@ -79,12 +94,14 @@ flowchart TD
     client["masque-client<br/>transport choice + UDP forwarding"]
     cli["minimasque CLI<br/>server, client, TUI"]
     ffi["masque-ffi<br/>UniFFI: Kotlin + Swift"]
+    android["Android app<br/>Jetpack Compose"]
     core --> h3 --> h2
     core --> h2
     h3 --> client
     h2 --> client
     client --> cli
     client --> ffi
+    ffi --> android
 ```
 
 | Crate | Contents |
@@ -139,7 +156,7 @@ cargo test --workspace            # unit, end-to-end, TUI render and FFI tests
 - [x] Live TUI with protocol inspector
 - [x] HTTP/2 fallback
 - [x] Kotlin and Swift bindings
-- [ ] Android app (Jetpack Compose on `masque-ffi`)
+- [x] Android app (Jetpack Compose on `masque-ffi`)
 - [ ] Interop with Apple's built-in MASQUE client (Network.framework relays)
 - [ ] iOS app (SwiftUI on `masque-ffi`)
 - [ ] Connection migration demo (Wi-Fi → mobile data without dropping the tunnel)

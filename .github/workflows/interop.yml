@@ -1,0 +1,46 @@
+name: Interop
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: interop/minimasque/Dockerfile
+          tags: minimasque-interop-minimasque
+          load: true
+          cache-from: type=gha,scope=minimasque
+          cache-to: type=gha,mode=max,scope=minimasque
+      - uses: docker/build-push-action@v6
+        with:
+          context: interop/masque-go
+          tags: minimasque-interop-masque-go
+          load: true
+          cache-from: type=gha,scope=masque-go
+          cache-to: type=gha,mode=max,scope=masque-go
+      - uses: docker/build-push-action@v6
+        with:
+          context: interop/quiche
+          tags: minimasque-interop-quiche
+          load: true
+          cache-from: type=gha,scope=quiche
+          cache-to: type=gha,mode=max,scope=quiche
+      - run: SKIP_BUILD=1 ./interop/run.sh
+      - if: always()
+        run: cat interop/results.md >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: interop-results
+          path: interop/results.md

@@ -1,0 +1,18 @@
+[package]
+name = "masque-h2"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+bytes = "1.12.1"
+h2 = "0.4.20"
+http = "1.5.0"
+masque-core = { version = "0.1.0", path = "../masque-core" }
+masque-h3 = { version = "0.1.0", path = "../masque-h3" }
+rustls = { version = "0.23.46", default-features = false, features = ["ring", "std"] }
+tokio = { version = "1.54.1", features = ["net", "rt", "sync", "macros", "time"] }
+tokio-rustls = { version = "0.26.6", default-features = false, features = ["ring"] }
+
+[dev-dependencies]
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "time"] }

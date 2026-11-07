@@ -4,10 +4,14 @@ use masque_core::{Target, connect_udp};
 
 pub const CAPSULE_PROTOCOL: &str = "capsule-protocol";
 
+pub fn protocol(req: &Request<()>) -> Option<&str> {
+    req.extensions().get::<Protocol>().map(Protocol::as_str)
+}
+
 pub fn validate(req: &Request<()>, template: &str) -> Result<Target, StatusCode> {
     connect_udp::accept(
         req.method().as_str(),
-        req.extensions().get::<Protocol>().map(Protocol::as_str),
+        protocol(req),
         req.uri().path_and_query().map_or("", |p| p.as_str()),
         template,
     )

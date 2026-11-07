@@ -54,7 +54,7 @@ async fn handle(
 ) -> Result<(), Error> {
     let (req, mut stream) = resolver.resolve_request().await?;
     let stream_id = stream.id().into_inner();
-    stats.emit(event::request(stream_id, &req));
+    stats.emit(event::request(stream_id, &req, request::protocol(&req)));
     let target = match request::validate(&req, &template) {
         Ok(target) => target,
         Err(status) => return reject(stream, &stats, status).await,

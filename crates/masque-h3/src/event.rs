@@ -1,4 +1,3 @@
-use h3::ext::Protocol;
 use http::{HeaderMap, Request, Response};
 use masque_core::Target;
 
@@ -38,14 +37,11 @@ pub fn headers(map: &HeaderMap) -> Vec<(String, String)> {
         .collect()
 }
 
-pub fn request(stream_id: u64, req: &Request<()>) -> Event {
+pub fn request(stream_id: u64, req: &Request<()>, protocol: Option<&str>) -> Event {
     Event::Request {
         stream_id,
         method: req.method().to_string(),
-        protocol: req
-            .extensions()
-            .get::<Protocol>()
-            .map(|p| p.as_str().to_owned()),
+        protocol: protocol.map(str::to_owned),
         authority: req
             .uri()
             .authority()

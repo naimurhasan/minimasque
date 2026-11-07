@@ -68,7 +68,8 @@ impl Client {
         let req = connect_request(template, target)?;
         let mut stream = self.send.clone().send_request(req.clone()).await?;
         let stream_id = stream.id().into_inner();
-        self.stats.emit(event::request(stream_id, &req));
+        self.stats
+            .emit(event::request(stream_id, &req, request::protocol(&req)));
         let inbound = self.router.register(stream_id);
         let resp = stream.recv_response().await?;
         self.stats.emit(event::response(stream_id, &resp));

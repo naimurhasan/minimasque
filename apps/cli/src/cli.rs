@@ -38,6 +38,8 @@ pub struct ServerArgs {
     pub cert_out: PathBuf,
     #[arg(long, help = "Show the live dashboard")]
     pub tui: bool,
+    #[arg(long, short, help = "Print protocol events to stderr")]
+    pub verbose: bool,
 }
 
 #[derive(Args)]

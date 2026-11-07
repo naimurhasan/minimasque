@@ -14,7 +14,7 @@
 MASQUE (RFC 9298) tunnels UDP inside HTTP. It is what iCloud Private Relay, Cloudflare WARP and other modern privacy proxies are built on. MiniMASQUE is a deliberately small implementation that makes the protocol visible and verifiable:
 
 - **Sans-I/O core.** `masque-core` contains the wire formats (varints, capsules, URI templates, datagram framing, request checks) as pure functions with no networking and no HTTP library, so it can sit under any QUIC or HTTP stack.
-- **Interop-tested.** An automated matrix runs every client against every proxy: MiniMASQUE, [masque-go](https://github.com/quic-go/masque-go) and [Google quiche](https://github.com/google/quiche).
+- **Interop-tested.** An automated matrix runs every client against every proxy: MiniMASQUE, [masque-go](https://github.com/quic-go/masque-go) and [Google quiche](https://github.com/google/quiche). Apple's own MASQUE client in Network.framework also works with the MiniMASQUE proxy, over both HTTP/3 and HTTP/2.
 - **HTTP/3 with an HTTP/2 fallback.** The same CONNECT-UDP tunnel runs over QUIC datagrams or, when UDP is blocked, over HTTP/2 DATAGRAM capsules. The client picks automatically.
 - **A live protocol inspector.** `--tui` shows throughput, open tunnels and the actual extended CONNECT exchange as it happens.
 - **One core, many platforms.** The CLI runs on Linux, macOS and Windows; `masque-ffi` exposes the client to Kotlin and Swift through UniFFI.
@@ -123,6 +123,17 @@ flowchart TD
 | **masque-go** | ✅ | ✅ | ✅ |
 | **quiche** | ✅ | ❌ | ✅ |
 
+### Apple's built-in MASQUE client
+
+macOS and iOS ship a MASQUE client in Network.framework (the stack behind iCloud Private Relay), exposed through `ProxyConfiguration.RelayHop`. [`interop/apple/run.sh`](interop/apple/run.sh) points it at a MiniMASQUE proxy and sends a DNS query to `1.1.1.1:53` from a plain UDP `NWConnection`. It passes only if the reply arrives *and* the proxy log shows the CONNECT-UDP request, so a silent direct fallback cannot count as a pass.
+
+| Apple client (macOS 15.3) → MiniMASQUE proxy | Result |
+|---|---|
+| HTTP/3 relay | ✅ NOERROR |
+| HTTP/2 relay | ✅ NOERROR |
+
+Apple's request also carries `proxy-quic-forwarding: ?1` (QUIC-aware proxying, an IETF draft). MiniMASQUE does not echo it back, so the client falls back to plain CONNECT-UDP tunnelling as the draft requires.
+
 Last run: 2026-11-07. The one failing pair does not involve MiniMASQUE: the quiche client opens the tunnel through the masque-go proxy, but its inner QUIC handshake times out. The [Interop workflow](.github/workflows/interop.yml) runs the matrix on every push to `main` and weekly.
 
 ## Standards coverage
@@ -142,6 +153,7 @@ Not implemented yet: `{?target_host,target_port}` form-style template expression
 ```sh
 cargo test --workspace            # unit, end-to-end, TUI render and FFI tests
 ./interop/run.sh                  # cross-implementation matrix (Docker)
+./interop/apple/run.sh            # Apple Network.framework relay (macOS)
 ./docs/record-demo.sh             # re-record docs/assets/demo.gif with VHS (Docker)
 ```
 
@@ -157,7 +169,7 @@ cargo test --workspace            # unit, end-to-end, TUI render and FFI tests
 - [x] HTTP/2 fallback
 - [x] Kotlin and Swift bindings
 - [x] Android app (Jetpack Compose on `masque-ffi`)
-- [ ] Interop with Apple's built-in MASQUE client (Network.framework relays)
+- [x] Interop with Apple's built-in MASQUE client (Network.framework relays)
 - [ ] iOS app (SwiftUI on `masque-ffi`)
 - [ ] Connection migration demo (Wi-Fi → mobile data without dropping the tunnel)
 - [ ] CONNECT-IP

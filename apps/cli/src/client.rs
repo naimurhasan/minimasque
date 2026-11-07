@@ -10,7 +10,9 @@ use crate::tui::{self, App, Feed};
 
 pub async fn run(args: ClientArgs) -> Result<(), Error> {
     let mut roots = RootCertStore::empty();
-    roots.add(CertificateDer::from(std::fs::read(&args.ca)?))?;
+    let ca = std::fs::read(&args.ca)
+        .map_err(|err| format!("cannot read --ca {}: {err}", args.ca.display()))?;
+    roots.add(CertificateDer::from(ca))?;
     let quic = endpoint::client(udp::unspecified(args.proxy), roots)?;
     let client = Client::connect(&quic, args.proxy, &args.name).await?;
     let feed = Feed::new(client.stats());

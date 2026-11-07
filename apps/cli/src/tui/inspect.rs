@@ -36,7 +36,7 @@ pub fn lines(event: &Event) -> Vec<String> {
             stream_id,
             target,
         } => vec![format!(
-            "● tunnel {tunnel_id} open  stream {stream_id} ⇄ {}:{}  context 0 = UDP payload",
+            "● tunnel {tunnel_id} open · stream {stream_id} ⇄ {}:{} · udp ctx 0",
             target.host, target.port
         )],
         Event::Closed { tunnel_id } => vec![format!("○ tunnel {tunnel_id} closed")],

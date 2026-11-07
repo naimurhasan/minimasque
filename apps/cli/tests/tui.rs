@@ -176,7 +176,7 @@ fn describes_protocol_events() {
     };
     assert_eq!(
         inspect_lines(&opened),
-        ["● tunnel 2 open  stream 0 ⇄ 1.1.1.1:53  context 0 = UDP payload"]
+        ["● tunnel 2 open · stream 0 ⇄ 1.1.1.1:53 · udp ctx 0"]
     );
     assert_eq!(
         inspect_lines(&Event::Closed { tunnel_id: 2 }),

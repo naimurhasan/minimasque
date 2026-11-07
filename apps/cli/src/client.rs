@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use masque_core::{Target, connect_udp};
+use masque_core::Target;
 use masque_h3::client::Client;
 use masque_h3::{Error, endpoint, udp};
 use rustls::RootCertStore;
@@ -16,13 +16,13 @@ pub async fn run(
     ca: PathBuf,
     local: SocketAddr,
     target: Target,
+    template: String,
 ) -> Result<(), Error> {
     let mut roots = RootCertStore::empty();
     roots.add(CertificateDer::from(std::fs::read(ca)?))?;
     let quic = endpoint::client(udp::unspecified(proxy), roots)?;
     let client = Client::connect(&quic, proxy, &name).await?;
-    let url = connect_udp::well_known_url(&format!("{name}:{}", proxy.port()));
-    let tunnel = client.open(&url, &target).await?;
+    let tunnel = client.open(&template, &target).await?;
     let socket = UdpSocket::bind(local).await?;
     println!(
         "forwarding udp {} -> {}:{} via {proxy}",

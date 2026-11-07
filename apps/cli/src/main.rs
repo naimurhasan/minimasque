@@ -21,6 +21,12 @@ async fn main() -> Result<(), masque_h3::Error> {
             ca,
             local,
             target,
-        } => client::run(proxy, name, ca, local, target).await,
+            template,
+        } => {
+            let template = template.unwrap_or_else(|| {
+                masque_core::connect_udp::well_known_url(&format!("{name}:{}", proxy.port()))
+            });
+            client::run(proxy, name, ca, local, target, template).await
+        }
     }
 }

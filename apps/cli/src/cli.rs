@@ -50,5 +50,10 @@ pub enum Command {
         local: SocketAddr,
         #[arg(long, help = "UDP target behind the proxy, e.g. 1.1.1.1:53")]
         target: Target,
+        #[arg(
+            long,
+            help = "Proxy URI template [default: https://<name>:<port>/.well-known/masque/udp/...]"
+        )]
+        template: Option<String>,
     },
 }

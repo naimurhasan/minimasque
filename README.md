@@ -50,7 +50,7 @@ The server writes a self-signed certificate to `minimasque-cert.der`, and the cl
 | macOS | CLI + TUI, proxy and client | [server dashboard](docs/assets/macos-server.png), recorded natively with VHS |
 | Windows | CLI cross-compiles (`x86_64-pc-windows-gnu`) | builds a PE32+ console `minimasque.exe`; not yet run on Windows |
 | Android | Jetpack Compose app on `masque-ffi` | [screenshot](docs/assets/android.png) from the Pixel 8 emulator |
-| iOS | Swift bindings generated | app not built yet |
+| iOS | SwiftUI app on `masque-ffi` | [screenshot](docs/assets/ios.png) from the iPhone 16 Pro Simulator (iOS 18.6) |
 
 <table>
   <tr>
@@ -75,6 +75,21 @@ cd apps/android && ./gradlew assembleDebug
 ```
 
 On the emulator, run the proxy on the host with `--name 10.0.2.2`, push the certificate with `adb push minimasque-cert.der /sdcard/Download/`, and connect to `10.0.2.2:4433`. Requires the Android SDK and NDK, `cargo install cargo-ndk`, and `rustup target add aarch64-linux-android x86_64-linux-android`.
+
+<br clear="right">
+
+## iOS
+
+<img src="docs/assets/ios.png" alt="MiniMASQUE iOS app resolving example.com through an HTTP/3 CONNECT-UDP tunnel" width="300" align="right">
+
+The iOS app is the same idea in SwiftUI: `masque-ffi` is built as a static library for device and Simulator, wrapped in an XCFramework, and called through the UniFFI-generated Swift bindings.
+
+```sh
+./apps/ios/scripts/build-rust.sh          # Rust static libs, Swift bindings, XCFramework, Xcode project (XcodeGen)
+open apps/ios/MiniMasque.xcodeproj
+```
+
+The Simulator shares the Mac's network, so it can reach a local proxy at `127.0.0.1`. For scripted runs, the app reads `MINIMASQUE_PROXY`, `MINIMASQUE_NAME`, `MINIMASQUE_CA_PATH`, `MINIMASQUE_AUTOCONNECT=1` and `MINIMASQUE_AUTOPROBE=1` from its environment (pass them as `SIMCTL_CHILD_*` to `xcrun simctl launch`). Requires Xcode, `brew install xcodegen`, and `rustup target add aarch64-apple-ios aarch64-apple-ios-sim`.
 
 <br clear="right">
 
@@ -116,6 +131,7 @@ flowchart TD
     cli["minimasque CLI<br/>server, client, TUI"]
     ffi["masque-ffi<br/>UniFFI: Kotlin + Swift"]
     android["Android app<br/>Jetpack Compose"]
+    ios["iOS app<br/>SwiftUI"]
     core --> h3 --> h2
     core --> h2
     h3 --> client
@@ -123,6 +139,7 @@ flowchart TD
     client --> cli
     client --> ffi
     ffi --> android
+    ffi --> ios
 ```
 
 | Crate | Contents |
@@ -192,7 +209,7 @@ cargo test --workspace            # unit, end-to-end, TUI render and FFI tests
 - [x] Kotlin and Swift bindings
 - [x] Android app (Jetpack Compose on `masque-ffi`)
 - [x] Interop with Apple's built-in MASQUE client (Network.framework relays)
-- [ ] iOS app (SwiftUI on `masque-ffi`)
+- [x] iOS app (SwiftUI on `masque-ffi`)
 - [ ] Connection migration demo (Wi-Fi → mobile data without dropping the tunnel)
 - [ ] CONNECT-IP
 

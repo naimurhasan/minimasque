@@ -1,12 +1,15 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use quinn::crypto::rustls::{QuicClientConfig, QuicServerConfig};
-use quinn::{ClientConfig, Endpoint, ServerConfig};
+use quinn::{ClientConfig, Endpoint, ServerConfig, TransportConfig};
 use rustls::RootCertStore;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 
 use crate::{ALPN, Error, tls};
+
+pub const KEEP_ALIVE: Duration = Duration::from_secs(10);
 
 pub fn server(
     addr: SocketAddr,
@@ -29,8 +32,10 @@ pub fn client(bind: SocketAddr, roots: RootCertStore) -> Result<Endpoint, Error>
         .with_no_client_auth();
     crypto.alpn_protocols = vec![ALPN.to_vec()];
     let mut endpoint = Endpoint::client(bind)?;
-    endpoint.set_default_client_config(ClientConfig::new(Arc::new(QuicClientConfig::try_from(
-        crypto,
-    )?)));
+    let mut transport = TransportConfig::default();
+    transport.keep_alive_interval(Some(KEEP_ALIVE));
+    let mut config = ClientConfig::new(Arc::new(QuicClientConfig::try_from(crypto)?));
+    config.transport_config(Arc::new(transport));
+    endpoint.set_default_client_config(config);
     Ok(endpoint)
 }

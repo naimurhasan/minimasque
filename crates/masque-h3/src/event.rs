@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use http::{HeaderMap, Request, Response};
 use masque_core::Target;
 
@@ -23,6 +25,10 @@ pub enum Event {
     },
     Closed {
         tunnel_id: u64,
+    },
+    Migrated {
+        from: SocketAddr,
+        to: SocketAddr,
     },
 }
 

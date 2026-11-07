@@ -1,4 +1,13 @@
+use std::net::SocketAddr;
+
 use crate::event::Event;
+
+fn address(addr: &SocketAddr) -> String {
+    match addr.ip().is_unspecified() {
+        true => format!("*:{}", addr.port()),
+        false => addr.to_string(),
+    }
+}
 
 fn header_lines(headers: &[(String, String)]) -> impl Iterator<Item = String> + '_ {
     headers
@@ -40,5 +49,9 @@ pub fn lines(event: &Event) -> Vec<String> {
             target.host, target.port
         )],
         Event::Closed { tunnel_id } => vec![format!("○ tunnel {tunnel_id} closed")],
+        Event::Migrated { from, to } => vec![
+            format!("◆ path migrated {} → {}", address(from), address(to)),
+            "    same connection · tunnels kept".into(),
+        ],
     }
 }

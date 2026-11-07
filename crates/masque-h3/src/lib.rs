@@ -4,6 +4,7 @@ pub mod describe;
 pub mod endpoint;
 pub mod error;
 pub mod event;
+pub mod migrate;
 pub mod request;
 pub mod router;
 pub mod server;

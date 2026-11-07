@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::time::Duration;
 
 use masque_h3::event::Event;
+use masque_h3::migrate::Migrator;
 use masque_h3::stats::Snapshot;
 
 use super::history::{History, rate};
@@ -17,6 +18,7 @@ pub struct App {
     pub log: VecDeque<Event>,
     pub up: History,
     pub down: History,
+    pub migrator: Option<Migrator>,
 }
 
 impl App {
@@ -29,6 +31,17 @@ impl App {
             log: VecDeque::new(),
             up: History::new(HISTORY_CAPACITY),
             down: History::new(HISTORY_CAPACITY),
+            migrator: None,
+        }
+    }
+
+    pub fn with_migrator(self, migrator: Option<Migrator>) -> Self {
+        Self { migrator, ..self }
+    }
+
+    pub fn migrate(&self) {
+        if let Some(migrator) = &self.migrator {
+            let _ = migrator.migrate();
         }
     }
 

@@ -5,6 +5,13 @@ use ratatui::widgets::Paragraph;
 
 use super::{App, panels};
 
+fn footer_text(app: &App) -> &'static str {
+    match app.migrator {
+        Some(_) => " q quit · m migrate path",
+        None => " q quit",
+    }
+}
+
 pub fn render(frame: &mut Frame, app: &App) {
     let [header, summary, graphs, body, footer] = Layout::vertical([
         Constraint::Length(3),
@@ -24,5 +31,8 @@ pub fn render(frame: &mut Frame, app: &App) {
     frame.render_widget(panels::throughput("↓ down", &app.down, Color::Blue), down);
     frame.render_widget(panels::tunnels(app), tunnels);
     frame.render_widget(panels::inspector(app, inspector.height), inspector);
-    frame.render_widget(Paragraph::new(" q quit").style(Style::new().dim()), footer);
+    frame.render_widget(
+        Paragraph::new(footer_text(app)).style(Style::new().dim()),
+        footer,
+    );
 }

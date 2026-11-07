@@ -24,6 +24,7 @@ MASQUE (RFC 9298) tunnels UDP inside HTTP. It is what iCloud Private Relay, Clou
 - **Interop-tested.** An automated matrix runs every client against every proxy: MiniMASQUE, [masque-go](https://github.com/quic-go/masque-go) and [Google quiche](https://github.com/google/quiche). Apple's own MASQUE client in Network.framework also works with the MiniMASQUE proxy, over both HTTP/3 and HTTP/2.
 - **HTTP/3 with an HTTP/2 fallback.** The same CONNECT-UDP tunnel runs over QUIC datagrams or, when UDP is blocked, over HTTP/2 DATAGRAM capsules. The client picks automatically.
 - **A live protocol inspector.** `--tui` shows throughput, open tunnels and the actual extended CONNECT exchange as it happens.
+- **Visible connection migration.** Press `m` in the client TUI to move QUIC to a new UDP socket mid-session; the tunnel keeps flowing and both ends log the path change.
 - **One core, many platforms.** The CLI runs on Linux, macOS and Windows; `masque-ffi` exposes the client to Kotlin and Swift through UniFFI.
 
 ## Quickstart
@@ -101,6 +102,16 @@ open apps/ios/MiniMasque.xcodeproj
 The Simulator shares the Mac's network, so it can reach a local proxy at `127.0.0.1`. For scripted runs, the app reads `MINIMASQUE_PROXY`, `MINIMASQUE_NAME`, `MINIMASQUE_CA_PATH`, `MINIMASQUE_AUTOCONNECT=1` and `MINIMASQUE_AUTOPROBE=1` from its environment (pass them as `SIMCTL_CHILD_*` to `xcrun simctl launch`). Requires Xcode, `brew install xcodegen`, and `rustup target add aarch64-apple-ios aarch64-apple-ios-sim`.
 
 <br clear="right">
+
+## Connection migration
+
+When a phone moves from Wi-Fi to mobile data, its address changes. A TCP-based tunnel has to reconnect; a QUIC connection can migrate to the new path and keep its streams and datagrams. In the client TUI, `m` rebinds the client's QUIC endpoint to a fresh UDP socket, which looks to the proxy exactly like a network change:
+
+<p align="center">
+  <img src="docs/assets/migration.gif" alt="Client TUI migrating its QUIC path twice while DNS traffic keeps flowing through the same CONNECT-UDP tunnel" width="900">
+</p>
+
+The tunnel, its stream and its counters survive, with nothing dropped. The proxy watches each connection's peer address and logs `◆ path migrated` in its own inspector when it changes. Migration is HTTP/3 only; the HTTP/2 fallback runs over TCP and cannot migrate.
 
 ## How it works
 
@@ -203,9 +214,10 @@ cargo test --workspace            # unit, end-to-end, TUI render and FFI tests
 ./interop/apple/run.sh            # Apple Network.framework relay (macOS)
 ./docs/record-demo.sh             # re-record the GIF and Linux screenshot with VHS (Docker)
 ./docs/record-macos.sh            # re-record the macOS screenshot with VHS (brew install vhs)
+vhs docs/migration.tape           # re-record the migration GIF (minimasque on PATH)
 ```
 
-- End-to-end tests run real QUIC and TLS on loopback: UDP relay both ways, multiplexed tunnels, refused requests, protocol events, HTTP/2 capsule relay, and automatic HTTP/2 fallback when QUIC is unreachable.
+- End-to-end tests run real QUIC and TLS on loopback: UDP relay both ways, multiplexed tunnels, refused requests, protocol events, connection migration, HTTP/2 capsule relay, and automatic HTTP/2 fallback when QUIC is unreachable.
 - The dashboard is rendered into ratatui's `TestBackend` and checked as text.
 - CI runs `rustfmt`, `clippy -D warnings` and the tests on Linux, macOS and Windows.
 
@@ -219,7 +231,7 @@ cargo test --workspace            # unit, end-to-end, TUI render and FFI tests
 - [x] Android app (Jetpack Compose on `masque-ffi`)
 - [x] Interop with Apple's built-in MASQUE client (Network.framework relays)
 - [x] iOS app (SwiftUI on `masque-ffi`)
-- [ ] Connection migration demo (Wi-Fi → mobile data without dropping the tunnel)
+- [x] Connection migration demo (rebind mid-session without dropping the tunnel)
 - [ ] CONNECT-IP
 
 ## License

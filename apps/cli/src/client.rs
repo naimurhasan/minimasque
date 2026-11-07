@@ -21,6 +21,7 @@ pub async fn run(args: ClientArgs) -> Result<(), Error> {
     let connected = Connected::connect(&options, roots).await?;
     let transport = connected.label();
     let feed = Feed::new(connected.stats());
+    let migrator = connected.migrator();
     let tunnel = connected.open(&args.template(), &args.target).await?;
     let socket = UdpSocket::bind(args.local).await?;
     let route = format!(
@@ -33,7 +34,8 @@ pub async fn run(args: ClientArgs) -> Result<(), Error> {
     println!("forwarding {route} over {transport}");
     tui::supervise(
         forward::run(socket, tunnel),
-        args.tui.then(|| App::new("client", route, transport)),
+        args.tui
+            .then(|| App::new("client", route, transport).with_migrator(migrator)),
         feed,
     )
     .await

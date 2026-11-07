@@ -9,6 +9,7 @@ use masque_core::{Target, connect_udp};
 use quinn::Endpoint;
 use tokio::sync::mpsc::Receiver;
 
+use crate::migrate::Migrator;
 use crate::router::{self, Router};
 use crate::stats::{Stats, Tracked};
 use crate::{Error, event, request, tunnel};
@@ -16,6 +17,7 @@ use crate::{Error, event, request, tunnel};
 type Stream = RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>;
 
 pub struct Client {
+    endpoint: Endpoint,
     quic: quinn::Connection,
     send: SendRequest<h3_quinn::OpenStreams, Bytes>,
     router: Arc<Router>,
@@ -53,6 +55,7 @@ impl Client {
             .await?;
         tokio::spawn(async move { driver.wait_idle().await });
         Ok(Self {
+            endpoint: endpoint.clone(),
             quic,
             send,
             router,
@@ -62,6 +65,10 @@ impl Client {
 
     pub fn stats(&self) -> Arc<Stats> {
         self.stats.clone()
+    }
+
+    pub fn migrator(&self) -> Migrator {
+        Migrator::new(self.endpoint.clone(), self.stats.clone())
     }
 
     pub async fn open(&self, template: &str, target: &Target) -> Result<UdpTunnel, Error> {

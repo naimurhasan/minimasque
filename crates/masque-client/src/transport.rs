@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use masque_core::Target;
+use masque_h3::migrate::Migrator;
 use masque_h3::stats::Stats;
 use masque_h3::{Error, endpoint, udp};
 use rustls::RootCertStore;
@@ -92,6 +93,13 @@ impl Connected {
         match self {
             Self::H3(client) => client.stats(),
             Self::H2(client) => client.stats(),
+        }
+    }
+
+    pub fn migrator(&self) -> Option<Migrator> {
+        match self {
+            Self::H3(client) => Some(client.migrator()),
+            Self::H2(_) => None,
         }
     }
 

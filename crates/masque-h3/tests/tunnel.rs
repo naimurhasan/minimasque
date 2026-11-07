@@ -152,3 +152,34 @@ async fn proxy_reports_protocol_events() {
     ));
     assert!(matches!(next(&mut events).await, Event::Closed { .. }));
 }
+
+async fn migrated(events: &mut Receiver<Event>) -> (SocketAddr, SocketAddr) {
+    loop {
+        if let Event::Migrated { from, to } = next(events).await {
+            return (from, to);
+        }
+    }
+}
+
+#[tokio::test]
+async fn tunnel_survives_client_migration() {
+    let proxy_stats = Arc::new(Stats::default());
+    let mut proxy_events = proxy_stats.subscribe();
+    let client = client_with(proxy_stats).await;
+    let mut client_events = client.stats().subscribe();
+    let mut tunnel = client.open(URL, &local(echo().await)).await.unwrap();
+    let timeout = Duration::from_secs(2);
+    tunnel.send(b"before").unwrap();
+    tokio::time::timeout(timeout, tunnel.recv()).await.unwrap();
+
+    let to = client.migrator().migrate().unwrap();
+    tunnel.send(b"after").unwrap();
+    let reply = tokio::time::timeout(timeout, tunnel.recv()).await.unwrap();
+    assert_eq!(reply.as_deref(), Some(&b"after"[..]));
+
+    let (client_from, client_to) = migrated(&mut client_events).await;
+    assert_eq!(client_to, to);
+    assert_ne!(client_from.port(), to.port());
+    let (_, proxy_sees) = migrated(&mut proxy_events).await;
+    assert_eq!(proxy_sees.port(), to.port());
+}

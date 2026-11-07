@@ -12,6 +12,7 @@ fn styled(line: String) -> Line<'static> {
         Some('◀') => Color::Green,
         Some('●') => Color::Cyan,
         Some('○') => Color::DarkGray,
+        Some('◆') => Color::Magenta,
         _ => return Line::from(line).dim(),
     };
     Line::from(line).style(Style::new().fg(color))

@@ -5,7 +5,7 @@ use masque_h3::describe::lines as inspect_lines;
 use masque_h3::event::Event;
 use masque_h3::stats::Snapshot;
 use minimasque::format;
-use minimasque::tui::{App, History, quits, rate};
+use minimasque::tui::{App, History, migrates, quits, rate};
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 #[test]
@@ -202,4 +202,40 @@ fn feed_keeps_events_emitted_before_first_poll() {
     assert_eq!(events.len(), 2);
     assert_eq!(events[0], request());
     drop(tunnel);
+}
+
+#[test]
+fn migrates_on_m() {
+    assert!(migrates(KeyEvent::new(
+        KeyCode::Char('m'),
+        KeyModifiers::NONE
+    )));
+    assert!(!migrates(KeyEvent::new(
+        KeyCode::Char('q'),
+        KeyModifiers::NONE
+    )));
+}
+
+#[test]
+fn describes_migration() {
+    let event = Event::Migrated {
+        from: "127.0.0.1:5000".parse().unwrap(),
+        to: "127.0.0.1:6000".parse().unwrap(),
+    };
+    assert_eq!(
+        inspect_lines(&event),
+        [
+            "◆ path migrated 127.0.0.1:5000 → 127.0.0.1:6000",
+            "    same connection · tunnels kept"
+        ]
+    );
+}
+
+#[test]
+fn describes_wildcard_migration_by_port() {
+    let event = Event::Migrated {
+        from: "0.0.0.0:5000".parse().unwrap(),
+        to: "0.0.0.0:6000".parse().unwrap(),
+    };
+    assert_eq!(inspect_lines(&event)[0], "◆ path migrated *:5000 → *:6000");
 }

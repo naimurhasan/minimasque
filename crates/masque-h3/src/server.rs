@@ -5,6 +5,7 @@ use h3::server::RequestResolver;
 use http::StatusCode;
 use quinn::{Endpoint, Incoming};
 
+use crate::migrate;
 use crate::router::{self, Router};
 use crate::stats::Stats;
 use crate::tunnel::Tunnel;
@@ -26,6 +27,7 @@ async fn connection(
     let quic = incoming.await?;
     let router = Arc::new(Router::default());
     tokio::spawn(router::demux(quic.clone(), router.clone()));
+    tokio::spawn(migrate::watch(quic.clone(), stats.clone()));
     let mut h3 = h3::server::builder()
         .enable_extended_connect(true)
         .enable_datagram(true)

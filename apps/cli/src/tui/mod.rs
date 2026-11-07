@@ -16,7 +16,7 @@ use ratatui::crossterm::event::{self, Event};
 pub use app::App;
 pub use feed::Feed;
 pub use history::{History, rate};
-pub use keys::quits;
+pub use keys::{migrates, quits};
 pub use supervise::supervise;
 pub use view::render;
 
@@ -44,9 +44,13 @@ fn event_loop(
         terminal.draw(|frame| view::render(frame, &app))?;
         if event::poll(TICK)?
             && let Event::Key(key) = event::read()?
-            && quits(key)
         {
-            return Ok(());
+            if quits(key) {
+                return Ok(());
+            }
+            if migrates(key) {
+                app.migrate();
+            }
         }
     }
     Ok(())

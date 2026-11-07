@@ -1,4 +1,4 @@
-use masque_h3::event::Event;
+use crate::event::Event;
 
 fn header_lines(headers: &[(String, String)]) -> impl Iterator<Item = String> + '_ {
     headers

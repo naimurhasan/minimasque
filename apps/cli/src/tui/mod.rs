@@ -1,7 +1,6 @@
 mod app;
 mod feed;
 mod history;
-mod inspect;
 mod keys;
 mod panels;
 mod supervise;
@@ -17,7 +16,6 @@ use ratatui::crossterm::event::{self, Event};
 pub use app::App;
 pub use feed::Feed;
 pub use history::{History, rate};
-pub use inspect::lines as inspect_lines;
 pub use keys::quits;
 pub use supervise::supervise;
 pub use view::render;

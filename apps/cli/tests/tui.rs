@@ -1,10 +1,11 @@
 use std::time::Duration;
 
 use masque_h3::counters::CounterSnapshot;
+use masque_h3::describe::lines as inspect_lines;
 use masque_h3::event::Event;
 use masque_h3::stats::Snapshot;
 use minimasque::format;
-use minimasque::tui::{App, History, inspect_lines, quits, rate};
+use minimasque::tui::{App, History, quits, rate};
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 #[test]

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand};
 use masque_core::{Target, connect_udp};
 
-use crate::transport::Transport;
+use masque_client::transport::Transport;
 
 #[derive(Parser)]
 #[command(
@@ -69,7 +69,11 @@ pub struct ClientArgs {
         help = "Proxy URI template [default: https://<name>:<port>/.well-known/masque/udp/...]"
     )]
     pub template: Option<String>,
-    #[arg(long, value_enum, default_value_t = Transport::Auto, help = "auto tries HTTP/3 first, then falls back to HTTP/2")]
+    #[arg(
+        long,
+        default_value = "auto",
+        help = "auto | h3 | h2 (auto tries HTTP/3, then falls back to HTTP/2)"
+    )]
     pub transport: Transport,
     #[arg(long, help = "Show the live dashboard")]
     pub tui: bool,

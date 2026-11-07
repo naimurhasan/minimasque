@@ -1,22 +1,43 @@
+use std::net::SocketAddr;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::Bytes;
-use clap::ValueEnum;
 use masque_core::Target;
 use masque_h3::stats::Stats;
 use masque_h3::{Error, endpoint, udp};
 use rustls::RootCertStore;
 
-use crate::cli::ClientArgs;
-
 const QUIC_TIMEOUT: Duration = Duration::from_secs(3);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Transport {
     Auto,
     H3,
     H2,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConnectOptions {
+    pub proxy: SocketAddr,
+    pub name: String,
+    pub transport: Transport,
+}
+
+impl FromStr for Transport {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, String> {
+        match value {
+            "auto" => Ok(Self::Auto),
+            "h3" => Ok(Self::H3),
+            "h2" => Ok(Self::H2),
+            other => Err(format!(
+                "unknown transport {other:?}, expected auto, h3 or h2"
+            )),
+        }
+    }
 }
 
 pub enum Connected {
@@ -29,31 +50,32 @@ pub enum Tunnel {
     H2(Box<(masque_h2::client::Tunnel, masque_h2::client::Client)>),
 }
 
-async fn quic(args: &ClientArgs, roots: RootCertStore) -> Result<Connected, Error> {
-    let local = endpoint::client(udp::unspecified(args.proxy), roots)?;
-    let connect = masque_h3::client::Client::connect(&local, args.proxy, &args.name);
+async fn quic(options: &ConnectOptions, roots: RootCertStore) -> Result<Connected, Error> {
+    let local = endpoint::client(udp::unspecified(options.proxy), roots)?;
+    let connect = masque_h3::client::Client::connect(&local, options.proxy, &options.name);
     let client = tokio::time::timeout(QUIC_TIMEOUT, connect)
         .await
         .map_err(|_| "QUIC handshake timed out")??;
     Ok(Connected::H3(client))
 }
 
-async fn tcp(args: &ClientArgs, roots: RootCertStore) -> Result<Connected, Error> {
+async fn tcp(options: &ConnectOptions, roots: RootCertStore) -> Result<Connected, Error> {
     let connector = masque_h2::tls::connector(roots)?;
-    let client = masque_h2::client::Client::connect(args.proxy, &args.name, &connector).await?;
+    let client =
+        masque_h2::client::Client::connect(options.proxy, &options.name, &connector).await?;
     Ok(Connected::H2(client))
 }
 
 impl Connected {
-    pub async fn connect(args: &ClientArgs, roots: RootCertStore) -> Result<Self, Error> {
-        match args.transport {
-            Transport::H3 => quic(args, roots).await,
-            Transport::H2 => tcp(args, roots).await,
-            Transport::Auto => match quic(args, roots.clone()).await {
+    pub async fn connect(options: &ConnectOptions, roots: RootCertStore) -> Result<Self, Error> {
+        match options.transport {
+            Transport::H3 => quic(options, roots).await,
+            Transport::H2 => tcp(options, roots).await,
+            Transport::Auto => match quic(options, roots.clone()).await {
                 Ok(connected) => Ok(connected),
                 Err(err) => {
                     eprintln!("HTTP/3 unavailable ({err}), falling back to HTTP/2");
-                    tcp(args, roots).await
+                    tcp(options, roots).await
                 }
             },
         }

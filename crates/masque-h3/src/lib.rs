@@ -1,5 +1,6 @@
 pub mod client;
 pub mod counters;
+pub mod describe;
 pub mod endpoint;
 pub mod error;
 pub mod event;

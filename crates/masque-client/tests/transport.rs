@@ -1,9 +1,8 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use masque_client::transport::{ConnectOptions, Connected, Transport};
 use masque_core::connect_udp::WELL_KNOWN_PATH;
-use minimasque::cli::ClientArgs;
-use minimasque::transport::{Connected, Transport};
 use rustls::RootCertStore;
 use tokio::net::TcpListener;
 
@@ -23,16 +22,11 @@ async fn http2_only_proxy() -> (SocketAddr, RootCertStore) {
     (addr, roots)
 }
 
-fn args(proxy: SocketAddr, transport: Transport) -> ClientArgs {
-    ClientArgs {
+fn args(proxy: SocketAddr, transport: Transport) -> ConnectOptions {
+    ConnectOptions {
         proxy,
         name: "localhost".into(),
-        ca: "unused".into(),
-        local: "127.0.0.1:0".parse().unwrap(),
-        target: "127.0.0.1:53".parse().unwrap(),
-        template: None,
         transport,
-        tui: false,
     }
 }
 
@@ -53,4 +47,12 @@ async fn forced_http3_fails_without_quic() {
             .await
             .is_err()
     );
+}
+
+#[test]
+fn parses_transport_names() {
+    assert_eq!("auto".parse(), Ok(Transport::Auto));
+    assert_eq!("h3".parse(), Ok(Transport::H3));
+    assert_eq!("h2".parse(), Ok(Transport::H2));
+    assert!("quic".parse::<Transport>().is_err());
 }

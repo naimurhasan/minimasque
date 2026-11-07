@@ -1091,6 +1091,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "masque-client"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "masque-core",
+ "masque-h2",
+ "masque-h3",
+ "rustls",
+ "tokio",
+]
+
+[[package]]
 name = "masque-core"
 version = "0.1.0"
 
@@ -1154,8 +1166,8 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 name = "minimasque"
 version = "0.1.0"
 dependencies = [
- "bytes",
  "clap",
+ "masque-client",
  "masque-core",
  "masque-h2",
  "masque-h3",

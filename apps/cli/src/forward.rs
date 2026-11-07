@@ -12,9 +12,7 @@ pub async fn run(socket: UdpSocket, mut tunnel: UdpTunnel) -> Result<(), Error> 
             received = socket.recv_from(&mut buf) => {
                 let (len, from) = received?;
                 peer = Some(from);
-                if let Err(err) = tunnel.send(&buf[..len]) {
-                    eprintln!("dropped packet: {err}");
-                }
+                let _ = tunnel.send(&buf[..len]);
             }
             reply = tunnel.recv() => {
                 let Some(reply) = reply else { return Ok(()) };

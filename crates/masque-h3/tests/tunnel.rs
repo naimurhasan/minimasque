@@ -4,25 +4,32 @@ use std::time::Duration;
 
 use masque_core::Target;
 use masque_h3::client::Client;
+use masque_h3::event::Event;
+use masque_h3::stats::Stats;
 use masque_h3::{endpoint, server, tls};
 use rustls::RootCertStore;
 use tokio::net::UdpSocket;
+use tokio::sync::broadcast::Receiver;
 
 const PATH: &str = "/.well-known/masque/udp/{target_host}/{target_port}/";
 const URL: &str = "https://localhost/.well-known/masque/udp/{target_host}/{target_port}/";
 
-async fn start() -> (SocketAddr, RootCertStore) {
+async fn start(stats: Arc<Stats>) -> (SocketAddr, RootCertStore) {
     let (cert, key) = tls::self_signed(vec!["localhost".into()]).unwrap();
     let mut roots = RootCertStore::empty();
     roots.add(cert.clone()).unwrap();
     let proxy = endpoint::server("127.0.0.1:0".parse().unwrap(), cert, key).unwrap();
     let addr = proxy.local_addr().unwrap();
-    tokio::spawn(server::serve(proxy, Arc::from(PATH)));
+    tokio::spawn(server::serve(proxy, Arc::from(PATH), stats));
     (addr, roots)
 }
 
 async fn client() -> Client {
-    let (addr, roots) = start().await;
+    client_with(Arc::default()).await
+}
+
+async fn client_with(stats: Arc<Stats>) -> Client {
+    let (addr, roots) = start(stats).await;
     let local = endpoint::client("127.0.0.1:0".parse().unwrap(), roots).unwrap();
     Client::connect(&local, addr, "localhost").await.unwrap()
 }
@@ -56,6 +63,15 @@ async fn relays_udp_both_ways() {
         .await
         .unwrap();
     assert_eq!(reply.as_deref(), Some(&b"ping"[..]));
+
+    let snapshot = client.stats().snapshot();
+    assert_eq!(snapshot.tunnels.len(), 1);
+    assert_eq!(
+        (snapshot.totals.bytes_up, snapshot.totals.bytes_down),
+        (4, 4)
+    );
+    drop(tunnel);
+    assert!(client.stats().snapshot().tunnels.is_empty());
 }
 
 #[tokio::test]
@@ -92,4 +108,47 @@ async fn reports_refused_tunnel() {
         )
         .await;
     assert!(refused.err().unwrap().to_string().contains("400"));
+}
+
+async fn next(events: &mut Receiver<Event>) -> Event {
+    tokio::time::timeout(Duration::from_secs(2), events.recv())
+        .await
+        .unwrap()
+        .unwrap()
+}
+
+#[tokio::test]
+async fn proxy_reports_protocol_events() {
+    let stats = Arc::new(Stats::default());
+    let mut events = stats.subscribe();
+    let client = client_with(stats).await;
+    let port = echo().await;
+    let tunnel = client.open(URL, &local(port)).await.unwrap();
+    drop(tunnel);
+
+    let Event::Request {
+        method,
+        protocol,
+        path,
+        headers,
+        stream_id,
+        ..
+    } = next(&mut events).await
+    else {
+        panic!("expected request")
+    };
+    assert_eq!(
+        (method.as_str(), protocol.as_deref()),
+        ("CONNECT", Some("connect-udp"))
+    );
+    assert_eq!(path, format!("/.well-known/masque/udp/127.0.0.1/{port}/"));
+    assert!(headers.contains(&("capsule-protocol".into(), "?1".into())));
+    assert!(
+        matches!(next(&mut events).await, Event::Opened { stream_id: id, .. } if id == stream_id)
+    );
+    assert!(matches!(
+        next(&mut events).await,
+        Event::Response { status: 200, .. }
+    ));
+    assert!(matches!(next(&mut events).await, Event::Closed { .. }));
 }

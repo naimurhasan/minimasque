@@ -8,6 +8,7 @@ use tokio::sync::mpsc::Receiver;
 
 use crate::Error;
 use crate::router::Router;
+use crate::stats::Tracked;
 
 const MAX_UDP: usize = 65_535;
 
@@ -16,6 +17,7 @@ pub struct Tunnel {
     pub router: Arc<Router>,
     pub stream_id: u64,
     pub socket: UdpSocket,
+    pub tracked: Tracked,
 }
 
 pub fn to_udp(http_payload: &[u8]) -> Option<&[u8]> {
@@ -67,12 +69,17 @@ impl Tunnel {
         loop {
             tokio::select! {
                 Some(payload) = inbound.recv() => {
-                    if let Some(udp) = to_udp(&payload) {
-                        let _ = self.socket.send(udp).await;
+                    match to_udp(&payload) {
+                        Some(udp) if self.socket.send(udp).await.is_ok() => self.tracked.up(udp.len()),
+                        _ => self.tracked.drop_one(),
                     }
                 }
                 received = self.socket.recv(&mut buf) => {
-                    let _ = self.quic.send_datagram(to_quic(self.stream_id, &buf[..received?])?);
+                    let udp = &buf[..received?];
+                    match self.quic.send_datagram(to_quic(self.stream_id, udp)?) {
+                        Ok(()) => self.tracked.down(udp.len()),
+                        Err(_) => self.tracked.drop_one(),
+                    }
                 }
                 data = stream.recv_data() => {
                     if data?.is_none() {

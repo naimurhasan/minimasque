@@ -8,5 +8,9 @@ version.workspace = true
 clap = { version = "4.6.7", features = ["derive"] }
 masque-core = { version = "0.1.0", path = "../../crates/masque-core" }
 masque-h3 = { version = "0.1.0", path = "../../crates/masque-h3" }
+ratatui = "0.30.2"
 rustls = { version = "0.23.46", default-features = false, features = ["ring", "std"] }
-tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread", "net"] }
+tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread", "net", "sync"] }
+
+[dev-dependencies]
+masque-core = { path = "../../crates/masque-core" }

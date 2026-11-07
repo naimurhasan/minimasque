@@ -10,7 +10,8 @@ use quinn::Endpoint;
 use tokio::sync::mpsc::Receiver;
 
 use crate::router::{self, Router};
-use crate::{Error, request, tunnel};
+use crate::stats::{Stats, Tracked};
+use crate::{Error, event, request, tunnel};
 
 type Stream = RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>;
 
@@ -18,6 +19,7 @@ pub struct Client {
     quic: quinn::Connection,
     send: SendRequest<h3_quinn::OpenStreams, Bytes>,
     router: Arc<Router>,
+    stats: Arc<Stats>,
 }
 
 pub struct UdpTunnel {
@@ -25,6 +27,7 @@ pub struct UdpTunnel {
     router: Arc<Router>,
     stream_id: u64,
     inbound: Receiver<Bytes>,
+    tracked: Tracked,
     _stream: Stream,
 }
 
@@ -49,18 +52,27 @@ impl Client {
             .build(h3_quinn::Connection::new(quic.clone()))
             .await?;
         tokio::spawn(async move { driver.wait_idle().await });
-        Ok(Self { quic, send, router })
+        Ok(Self {
+            quic,
+            send,
+            router,
+            stats: Arc::default(),
+        })
+    }
+
+    pub fn stats(&self) -> Arc<Stats> {
+        self.stats.clone()
     }
 
     pub async fn open(&self, template: &str, target: &Target) -> Result<UdpTunnel, Error> {
-        let mut stream = self
-            .send
-            .clone()
-            .send_request(connect_request(template, target)?)
-            .await?;
+        let req = connect_request(template, target)?;
+        let mut stream = self.send.clone().send_request(req.clone()).await?;
         let stream_id = stream.id().into_inner();
+        self.stats.emit(event::request(stream_id, &req));
         let inbound = self.router.register(stream_id);
-        let status = stream.recv_response().await?.status();
+        let resp = stream.recv_response().await?;
+        self.stats.emit(event::response(stream_id, &resp));
+        let status = resp.status();
         if !status.is_success() {
             self.router.remove(stream_id);
             return Err(format!("proxy refused tunnel: {status}").into());
@@ -70,6 +82,7 @@ impl Client {
             router: self.router.clone(),
             stream_id,
             inbound,
+            tracked: self.stats.track(stream_id, target.clone()),
             _stream: stream,
         })
     }
@@ -77,16 +90,25 @@ impl Client {
 
 impl UdpTunnel {
     pub fn send(&self, payload: &[u8]) -> Result<(), Error> {
-        Ok(self
+        let sent = self
             .quic
-            .send_datagram(tunnel::to_quic(self.stream_id, payload)?)?)
+            .send_datagram(tunnel::to_quic(self.stream_id, payload)?);
+        match &sent {
+            Ok(()) => self.tracked.up(payload.len()),
+            Err(_) => self.tracked.drop_one(),
+        }
+        Ok(sent?)
     }
 
     pub async fn recv(&mut self) -> Option<Bytes> {
         loop {
             let http_payload = self.inbound.recv().await?;
-            if let Some(udp) = tunnel::to_udp(&http_payload) {
-                return Some(http_payload.slice_ref(udp));
+            match tunnel::to_udp(&http_payload) {
+                Some(udp) => {
+                    self.tracked.down(udp.len());
+                    return Some(http_payload.slice_ref(udp));
+                }
+                None => self.tracked.drop_one(),
             }
         }
     }

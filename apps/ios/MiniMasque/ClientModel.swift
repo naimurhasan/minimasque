@@ -15,6 +15,7 @@ final class ClientModel {
     var connecting = false
     var transportLabel: String?
     var localAddress: String?
+    var canMigrate = false
     var error: String?
     var stats: StatsRecord?
     var log: [String] = []
@@ -40,6 +41,10 @@ final class ClientModel {
         guard options.autoConnect else { return }
         await connect()
         if options.autoProbe { await probe() }
+        if options.autoMigrate {
+            await migrate()
+            await probe()
+        }
     }
 
     func setCertificate(name: String, data: Data) {
@@ -63,6 +68,7 @@ final class ClientModel {
             forwarder = started
             transportLabel = started.transport()
             localAddress = started.localAddress()
+            canMigrate = started.canMigrate()
             poll(started)
         } catch {
             self.error = "\(error)"
@@ -76,6 +82,17 @@ final class ClientModel {
         forwarder = nil
         transportLabel = nil
         localAddress = nil
+        canMigrate = false
+    }
+
+    func migrate() async {
+        guard let forwarder else { return }
+        do {
+            _ = try await Task.detached { try forwarder.migrate() }.value
+        } catch {
+            self.error = "\(error)"
+        }
+        refresh()
     }
 
     func probe() async {

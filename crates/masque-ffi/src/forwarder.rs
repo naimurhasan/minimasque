@@ -5,6 +5,7 @@ use masque_client::transport::{ConnectOptions, Connected, Transport};
 use masque_core::{Target, connect_udp};
 use masque_h3::describe;
 use masque_h3::event::Event;
+use masque_h3::migrate::Migrator;
 use masque_h3::stats::Stats;
 use rustls::RootCertStore;
 use rustls::pki_types::CertificateDer;
@@ -19,12 +20,13 @@ use crate::records::StatsRecord;
 
 #[derive(uniffi::Object)]
 pub struct Forwarder {
-    _runtime: Runtime,
+    runtime: Runtime,
     stats: Arc<Stats>,
     events: Mutex<Receiver<Event>>,
     task: JoinHandle<Result<(), masque_h3::Error>>,
     transport: String,
     local: String,
+    migrator: Option<Migrator>,
 }
 
 struct Started {
@@ -33,6 +35,7 @@ struct Started {
     task: JoinHandle<Result<(), masque_h3::Error>>,
     transport: String,
     local: String,
+    migrator: Option<Migrator>,
 }
 
 async fn start(config: ForwarderConfig) -> Result<Started, masque_h3::Error> {
@@ -50,6 +53,7 @@ async fn start(config: ForwarderConfig) -> Result<Started, masque_h3::Error> {
     let connected = Connected::connect(&options, roots).await?;
     let transport = connected.label().to_owned();
     let stats = connected.stats();
+    let migrator = connected.migrator();
     let events = stats.subscribe();
     let tunnel = connected.open(&template, &target).await?;
     let socket = UdpSocket::bind(config.local.as_str()).await?;
@@ -61,6 +65,7 @@ async fn start(config: ForwarderConfig) -> Result<Started, masque_h3::Error> {
         task,
         transport,
         local,
+        migrator,
     })
 }
 
@@ -71,12 +76,13 @@ impl Forwarder {
         let runtime = Runtime::new().map_err(failed)?;
         let started = runtime.block_on(start(config)).map_err(failed)?;
         Ok(Arc::new(Self {
-            _runtime: runtime,
+            runtime,
             stats: started.stats,
             events: Mutex::new(started.events),
             task: started.task,
             transport: started.transport,
             local: started.local,
+            migrator: started.migrator,
         }))
     }
 
@@ -97,6 +103,19 @@ impl Forwarder {
         std::iter::from_fn(|| events.try_recv().ok())
             .flat_map(|event| describe::lines(&event))
             .collect()
+    }
+
+    pub fn can_migrate(&self) -> bool {
+        self.migrator.is_some()
+    }
+
+    pub fn migrate(&self) -> Result<String, MasqueError> {
+        let migrator = self
+            .migrator
+            .as_ref()
+            .ok_or_else(|| failed("migration needs HTTP/3"))?;
+        let _context = self.runtime.enter();
+        Ok(migrator.migrate().map_err(failed)?.to_string())
     }
 
     pub fn is_running(&self) -> bool {

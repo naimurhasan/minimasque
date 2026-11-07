@@ -8,6 +8,7 @@ struct InspectorLog: View {
         case "▶": return .yellow
         case "◀": return .green
         case "●": return .teal
+        case "◆": return .pink
         default: return .secondary
         }
     }

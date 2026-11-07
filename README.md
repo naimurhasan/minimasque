@@ -75,9 +75,9 @@ The server writes a self-signed certificate to `minimasque-cert.der`, and the cl
 
 ## Android
 
-<img src="docs/assets/android.png" alt="MiniMASQUE Android app resolving example.com through an HTTP/3 CONNECT-UDP tunnel" width="300" align="right">
+<img src="docs/assets/android.png" alt="MiniMASQUE Android app resolving example.com through an HTTP/3 CONNECT-UDP tunnel after a path migration" width="300" align="right">
 
-The Android app is a thin Jetpack Compose shell over the same Rust client (`masque-ffi`, loaded through UniFFI and JNA). It opens a tunnel, exposes a local UDP port for other code on the device, resolves a DNS name through the tunnel, and shows the same protocol inspector as the TUI.
+The Android app is a thin Jetpack Compose shell over the same Rust client (`masque-ffi`, loaded through UniFFI and JNA). It opens a tunnel, exposes a local UDP port for other code on the device, resolves a DNS name through the tunnel, migrates the QUIC path on demand, and shows the same protocol inspector as the TUI.
 
 ```sh
 ./apps/android/scripts/build-rust.sh      # cargo-ndk build + Kotlin bindings
@@ -90,7 +90,7 @@ On the emulator, run the proxy on the host with `--name 10.0.2.2`, push the cert
 
 ## iOS
 
-<img src="docs/assets/ios.png" alt="MiniMASQUE iOS app resolving example.com through an HTTP/3 CONNECT-UDP tunnel" width="300" align="right">
+<img src="docs/assets/ios.png" alt="MiniMASQUE iOS app resolving example.com through an HTTP/3 CONNECT-UDP tunnel after a path migration" width="300" align="right">
 
 The iOS app is the same idea in SwiftUI: `masque-ffi` is built as a static library for device and Simulator, wrapped in an XCFramework, and called through the UniFFI-generated Swift bindings.
 
@@ -99,7 +99,7 @@ The iOS app is the same idea in SwiftUI: `masque-ffi` is built as a static libra
 open apps/ios/MiniMasque.xcodeproj
 ```
 
-The Simulator shares the Mac's network, so it can reach a local proxy at `127.0.0.1`. For scripted runs, the app reads `MINIMASQUE_PROXY`, `MINIMASQUE_NAME`, `MINIMASQUE_CA_PATH`, `MINIMASQUE_AUTOCONNECT=1` and `MINIMASQUE_AUTOPROBE=1` from its environment (pass them as `SIMCTL_CHILD_*` to `xcrun simctl launch`). Requires Xcode, `brew install xcodegen`, and `rustup target add aarch64-apple-ios aarch64-apple-ios-sim`.
+The Simulator shares the Mac's network, so it can reach a local proxy at `127.0.0.1`. For scripted runs, the app reads `MINIMASQUE_PROXY`, `MINIMASQUE_NAME`, `MINIMASQUE_CA_PATH`, `MINIMASQUE_AUTOCONNECT=1`, `MINIMASQUE_AUTOPROBE=1` and `MINIMASQUE_AUTOMIGRATE=1` (migrate, then probe again) from its environment (pass them as `SIMCTL_CHILD_*` to `xcrun simctl launch`). Requires Xcode, `brew install xcodegen`, and `rustup target add aarch64-apple-ios aarch64-apple-ios-sim`.
 
 <br clear="right">
 
@@ -111,7 +111,7 @@ When a phone moves from Wi-Fi to mobile data, its address changes. A TCP-based t
   <img src="docs/assets/migration.gif" alt="Client TUI migrating its QUIC path twice while DNS traffic keeps flowing through the same CONNECT-UDP tunnel" width="900">
 </p>
 
-The tunnel, its stream and its counters survive, with nothing dropped. The proxy watches each connection's peer address and logs `◆ path migrated` in its own inspector when it changes. Migration is HTTP/3 only; the HTTP/2 fallback runs over TCP and cannot migrate.
+The tunnel, its stream and its counters survive, with nothing dropped. The proxy watches each connection's peer address and logs `◆ path migrated` in its own inspector when it changes. The Android and iOS apps have the same action as a **Migrate path** button (both screenshots above were taken after one). Migration is HTTP/3 only; the HTTP/2 fallback runs over TCP and cannot migrate.
 
 ## How it works
 

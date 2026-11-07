@@ -40,6 +40,9 @@ fun ClientScreen(model: ClientViewModel = viewModel()) {
             )
             if (state.connected) {
                 StatsCard(state)
+                if (state.canMigrate) {
+                    MigrateButton(onMigrate = model::migrate)
+                }
                 ProbeCard(result = state.probe, onProbe = model::probe)
             }
             InspectorLog(state.log)

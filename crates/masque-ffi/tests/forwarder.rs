@@ -65,6 +65,18 @@ fn forwards_local_udp_through_the_proxy() {
         "{events:?}"
     );
     assert!(forwarder.is_running());
+
+    assert!(forwarder.can_migrate());
+    forwarder.migrate().unwrap();
+    app.send_to(b"moved", forwarder.local_address()).unwrap();
+    let (n, _) = app.recv_from(&mut buf).unwrap();
+    assert_eq!(&buf[..n], b"moved");
+    assert!(
+        forwarder
+            .drain_events()
+            .iter()
+            .any(|line| line.starts_with("◆ path migrated")),
+    );
     forwarder.stop();
 }
 

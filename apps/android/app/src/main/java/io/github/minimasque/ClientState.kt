@@ -12,6 +12,7 @@ data class ClientState(
     val connected: Boolean = false,
     val transportLabel: String? = null,
     val localAddress: String? = null,
+    val canMigrate: Boolean = false,
     val error: String? = null,
     val stats: StatsRecord? = null,
     val log: List<String> = emptyList(),

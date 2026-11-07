@@ -11,11 +11,15 @@ struct ClientView: View {
                 ConnectionForm(model: model)
                 if model.connected {
                     StatsCard(model: model)
+                    if model.canMigrate {
+                        MigrateButton { Task { await model.migrate() } }
+                    }
                     ProbeCard(result: model.probeResult) { Task { await model.probe() } }
                 }
                 InspectorLog(lines: model.log)
             }
             .padding()
         }
+        .defaultScrollAnchor(.bottom)
     }
 }

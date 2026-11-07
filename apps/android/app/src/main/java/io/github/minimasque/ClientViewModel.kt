@@ -62,6 +62,7 @@ class ClientViewModel : ViewModel() {
                         connected = true,
                         transportLabel = started.transport(),
                         localAddress = started.localAddress(),
+                        canMigrate = started.canMigrate(),
                     )
                 }
                 poll(started)
@@ -76,7 +77,15 @@ class ClientViewModel : ViewModel() {
         forwarder?.stop()
         forwarder?.close()
         forwarder = null
-        mutableState.update { it.copy(connected = false, transportLabel = null, localAddress = null) }
+        mutableState.update { it.copy(connected = false, transportLabel = null, localAddress = null, canMigrate = false) }
+    }
+
+    fun migrate() {
+        val started = forwarder ?: return
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { started.migrate() } }
+                .onFailure { error -> mutableState.update { it.copy(error = error.message) } }
+        }
     }
 
     fun probe(name: String) {

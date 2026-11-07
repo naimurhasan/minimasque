@@ -6,6 +6,7 @@ struct LaunchOptions {
     var certificatePath: String?
     var autoConnect = false
     var autoProbe = false
+    var autoMigrate = false
 
     static func fromEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> LaunchOptions {
         var options = LaunchOptions()
@@ -14,6 +15,7 @@ struct LaunchOptions {
         options.certificatePath = environment["MINIMASQUE_CA_PATH"]
         options.autoConnect = environment["MINIMASQUE_AUTOCONNECT"] == "1"
         options.autoProbe = environment["MINIMASQUE_AUTOPROBE"] == "1"
+        options.autoMigrate = environment["MINIMASQUE_AUTOMIGRATE"] == "1"
         return options
     }
 }

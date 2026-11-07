@@ -16,6 +16,7 @@ private fun colorFor(line: String): Color = when (line.firstOrNull()) {
     '▶' -> Color(0xFFF9E2AF)
     '◀' -> Color(0xFFA6E3A1)
     '●' -> Color(0xFF94E2D5)
+    '◆' -> Color(0xFFF5C2E7)
     else -> Color(0xFF9399B2)
 }
 

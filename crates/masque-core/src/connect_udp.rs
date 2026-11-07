@@ -2,6 +2,8 @@ use std::str::FromStr;
 
 use crate::{Error, percent, uri_template};
 
+pub const PROTOCOL: &str = "connect-udp";
+
 pub const WELL_KNOWN_PATH: &str = "/.well-known/masque/udp/{target_host}/{target_port}/";
 
 const HOST: &str = "target_host";
@@ -22,6 +24,18 @@ pub fn expand(template: &str, target: &Target) -> Result<String, Error> {
         template,
         &[(HOST, &target.host), (PORT, &target.port.to_string())],
     )
+}
+
+pub fn accept(
+    method: &str,
+    protocol: Option<&str>,
+    path: &str,
+    template: &str,
+) -> Result<Target, Error> {
+    if method != "CONNECT" || protocol != Some(PROTOCOL) {
+        return Err(Error::InvalidRequest);
+    }
+    parse(template, path)
 }
 
 pub fn parse(template: &str, path: &str) -> Result<Target, Error> {

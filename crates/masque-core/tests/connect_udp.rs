@@ -90,3 +90,22 @@ fn builds_well_known_url() {
         "https://proxy.example:4433/.well-known/masque/udp/{target_host}/{target_port}/"
     );
 }
+
+#[test]
+fn accepts_only_connect_udp_requests() {
+    let path = "/.well-known/masque/udp/1.1.1.1/53/";
+    assert_eq!(
+        connect_udp::accept("CONNECT", Some("connect-udp"), path, PATH),
+        Ok(target("1.1.1.1", 53))
+    );
+    for (method, protocol) in [
+        ("GET", Some("connect-udp")),
+        ("CONNECT", None),
+        ("CONNECT", Some("connect-ip")),
+    ] {
+        assert_eq!(
+            connect_udp::accept(method, protocol, path, PATH),
+            Err(Error::InvalidRequest)
+        );
+    }
+}

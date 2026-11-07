@@ -66,3 +66,23 @@ fn reports_incomplete_capsule() {
         assert_eq!(capsule::decode(buf), Err(Error::UnexpectedEnd));
     }
 }
+
+#[test]
+fn decodes_all_complete_capsules_and_keeps_remainder() {
+    let buf = [0x00, 0x01, 0xaa, 0x00, 0x02, 0xbb, 0xcc, 0x00, 0x03, 0xdd];
+    let (capsules, used) = capsule::decode_all(&buf);
+    assert_eq!(
+        capsules,
+        [
+            Capsule {
+                kind: capsule::DATAGRAM,
+                payload: &[0xaa]
+            },
+            Capsule {
+                kind: capsule::DATAGRAM,
+                payload: &[0xbb, 0xcc]
+            },
+        ]
+    );
+    assert_eq!(used, 7);
+}

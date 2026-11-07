@@ -6,6 +6,7 @@ pub enum Error {
     VarIntOverflow,
     InvalidTemplate,
     InvalidTarget,
+    InvalidRequest,
 }
 
 impl fmt::Display for Error {
@@ -15,6 +16,7 @@ impl fmt::Display for Error {
             Self::VarIntOverflow => f.write_str("value exceeds 2^62 - 1"),
             Self::InvalidTemplate => f.write_str("invalid uri template"),
             Self::InvalidTarget => f.write_str("invalid proxy target"),
+            Self::InvalidRequest => f.write_str("not a connect-udp request"),
         }
     }
 }

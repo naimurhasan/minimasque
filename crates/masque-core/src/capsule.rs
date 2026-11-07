@@ -26,3 +26,13 @@ pub fn decode(buf: &[u8]) -> Result<(Capsule<'_>, usize), Error> {
     let payload = buf.get(start..end).ok_or(Error::UnexpectedEnd)?;
     Ok((Capsule { kind, payload }, end))
 }
+
+pub fn decode_all(buf: &[u8]) -> (Vec<Capsule<'_>>, usize) {
+    let mut capsules = Vec::new();
+    let mut used = 0;
+    while let Ok((capsule, len)) = decode(&buf[used..]) {
+        capsules.push(capsule);
+        used += len;
+    }
+    (capsules, used)
+}

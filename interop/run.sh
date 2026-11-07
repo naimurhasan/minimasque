@@ -55,16 +55,16 @@ run_client() {
       "${run[@]}" "$(image minimasque)" sh -c '
         minimasque client --proxy "$(getent hosts proxy | cut -d" " -f1):'"$PORT"'" --name proxy \
           --ca /certs/cert.der --target 1.1.1.1:53 --template "$T" & sleep 2
-        dig +time=3 +tries=2 @127.0.0.1 -p 5300 example.com A' | grep -q "status: NOERROR" ;;
+        dig +time=3 +tries=2 @127.0.0.1 -p 5300 example.com A' | grep "status: NOERROR" >/dev/null ;;
     masque-go)
       "${run[@]}" "$(image masque-go)" sh -c '
         openssl x509 -inform der -in /certs/cert.der -out /usr/local/share/ca-certificates/proxy.crt &&
         update-ca-certificates >/dev/null 2>&1 &&
-        timeout 20 masque-go-client -t "$T" https://cloudflare.com/cdn-cgi/trace 2>&1' | grep -q "HTTP status: 200" ;;
+        timeout 20 masque-go-client -t "$T" https://cloudflare.com/cdn-cgi/trace 2>&1' | grep "HTTP status: 200" >/dev/null ;;
     quiche)
       "${run[@]}" "$(image quiche)" sh -c '
         timeout 20 masque_client --stderrthreshold=0 --disable_certificate_verification "$T" \
-          https://cloudflare.com/cdn-cgi/trace 2>&1' | grep -q "Request succeeded" ;;
+          https://cloudflare.com/cdn-cgi/trace 2>&1' | grep "Request succeeded" >/dev/null ;;
   esac
 }
 

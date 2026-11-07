@@ -123,6 +123,8 @@ flowchart TD
 | **masque-go** | ✅ | ✅ | ✅ |
 | **quiche** | ✅ | ❌ | ✅ |
 
+Last run: 2026-11-07. The one failing pair does not involve MiniMASQUE: the quiche client opens the tunnel through the masque-go proxy, but its inner QUIC handshake times out. The [Interop workflow](.github/workflows/interop.yml) runs the matrix on every push to `main` and weekly.
+
 ### Apple's built-in MASQUE client
 
 macOS and iOS ship a MASQUE client in Network.framework (the stack behind iCloud Private Relay), exposed through `ProxyConfiguration.RelayHop`. [`interop/apple/run.sh`](interop/apple/run.sh) points it at a MiniMASQUE proxy and sends a DNS query to `1.1.1.1:53` from a plain UDP `NWConnection`. It passes only if the reply arrives *and* the proxy log shows the CONNECT-UDP request, so a silent direct fallback cannot count as a pass.
@@ -132,9 +134,7 @@ macOS and iOS ship a MASQUE client in Network.framework (the stack behind iCloud
 | HTTP/3 relay | ✅ NOERROR |
 | HTTP/2 relay | ✅ NOERROR |
 
-Apple's request also carries `proxy-quic-forwarding: ?1` (QUIC-aware proxying, an IETF draft). MiniMASQUE does not echo it back, so the client falls back to plain CONNECT-UDP tunnelling as the draft requires.
-
-Last run: 2026-11-07. The one failing pair does not involve MiniMASQUE: the quiche client opens the tunnel through the masque-go proxy, but its inner QUIC handshake times out. The [Interop workflow](.github/workflows/interop.yml) runs the matrix on every push to `main` and weekly.
+Apple's request also carries `proxy-quic-forwarding: ?1` (QUIC-aware proxying, an IETF draft). MiniMASQUE does not echo it back, so the client uses plain CONNECT-UDP tunnelling.
 
 ## Standards coverage
 

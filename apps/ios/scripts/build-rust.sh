@@ -3,6 +3,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 OUT="$ROOT/apps/ios/Generated"
 cd "$ROOT"
+export IPHONEOS_DEPLOYMENT_TARGET=17.0
 for target in aarch64-apple-ios aarch64-apple-ios-sim; do
   cargo build -q --release --target "$target" -p masque-ffi
 done

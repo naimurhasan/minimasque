@@ -1,0 +1,104 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  TAG: ${{ github.event.release.tag_name }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  cli:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu }
+          - { os: macos-latest, target: aarch64-apple-darwin }
+          - { os: macos-latest, target: x86_64-apple-darwin }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release --locked --target ${{ matrix.target }} -p minimasque
+      - name: Package
+        shell: bash
+        run: |
+          name="minimasque-$TAG-${{ matrix.target }}"
+          mkdir "$name"
+          cp README.md LICENSE-MIT LICENSE-APACHE "$name/"
+          if [[ "${{ matrix.target }}" == *windows* ]]; then
+            cp "target/${{ matrix.target }}/release/minimasque.exe" "$name/"
+            7z a -bd "$name.zip" "$name" >/dev/null
+            echo "ASSET=$name.zip" >> "$GITHUB_ENV"
+          else
+            cp "target/${{ matrix.target }}/release/minimasque" "$name/"
+            tar czf "$name.tar.gz" "$name"
+            echo "ASSET=$name.tar.gz" >> "$GITHUB_ENV"
+          fi
+      - shell: bash
+        run: gh release upload "$TAG" "$ASSET" --clobber
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: cargo install cargo-ndk --locked
+      - run: apps/android/scripts/build-rust.sh
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
+      - run: ./gradlew --no-daemon assembleDebug
+        working-directory: apps/android
+      - run: |
+          asset="minimasque-$TAG-android-debug.apk"
+          cp apps/android/app/build/outputs/apk/debug/app-debug.apk "$asset"
+          gh release upload "$TAG" "$asset" --clobber
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios, aarch64-apple-ios-sim
+      - uses: Swatinem/rust-cache@v2
+      - run: brew install xcodegen
+      - run: apps/ios/scripts/build-rust.sh
+      - run: >
+          xcodebuild -project MiniMasque.xcodeproj -scheme MiniMasque
+          -sdk iphonesimulator -configuration Release
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath build -quiet build
+        working-directory: apps/ios
+      - run: |
+          asset="minimasque-$TAG-ios-simulator.zip"
+          ditto -c -k --keepParent apps/ios/build/Build/Products/Release-iphonesimulator/MiniMasque.app "$asset"
+          gh release upload "$TAG" "$asset" --clobber
+
+  checksums:
+    needs: [cli, android, ios]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          mkdir assets && cd assets
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY"
+          sha256sum * > SHA256SUMS
+          gh release upload "$TAG" SHA256SUMS --repo "$GITHUB_REPOSITORY" --clobber

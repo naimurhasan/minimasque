@@ -1,10 +1,11 @@
 use masque_h3::Error;
-use masque_h3::client::UdpTunnel;
 use tokio::net::UdpSocket;
+
+use crate::transport::Tunnel;
 
 const MAX_UDP: usize = 65_535;
 
-pub async fn run(socket: UdpSocket, mut tunnel: UdpTunnel) -> Result<(), Error> {
+pub async fn run(socket: UdpSocket, mut tunnel: Tunnel) -> Result<(), Error> {
     let mut buf = vec![0; MAX_UDP];
     let mut peer = None;
     loop {

@@ -9,7 +9,7 @@ pub fn header(app: &App) -> Paragraph<'_> {
         " minimasque ".bold().black().on_cyan(),
         format!("  {}  ", app.mode).bold(),
         app.address.as_str().into(),
-        "   HTTP/3 · QUIC · CONNECT-UDP".dim(),
+        format!("   {} · CONNECT-UDP", app.transport).dim(),
     ]))
     .block(Block::bordered())
 }

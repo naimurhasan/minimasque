@@ -26,7 +26,7 @@ fn quits_on_q_esc_and_ctrl_c() {
 
 #[test]
 fn keeps_latest_events_only() {
-    let mut app = App::new("server", "127.0.0.1:4433".into());
+    let mut app = App::new("server", "127.0.0.1:4433".into(), "HTTP/3 · QUIC");
     app.update(
         Snapshot::default(),
         (0..250).map(|tunnel_id| Event::Closed { tunnel_id }),
@@ -64,7 +64,7 @@ fn history_keeps_latest_samples() {
 
 #[test]
 fn update_records_throughput() {
-    let mut app = App::new("server", "127.0.0.1:4433".into());
+    let mut app = App::new("server", "127.0.0.1:4433".into(), "HTTP/3 · QUIC");
     let snapshot = Snapshot {
         totals: CounterSnapshot {
             bytes_up: 500,
@@ -95,7 +95,7 @@ fn screen(app: &App) -> String {
 
 #[test]
 fn renders_dashboard() {
-    let mut app = App::new("server", "0.0.0.0:4433".into());
+    let mut app = App::new("server", "0.0.0.0:4433".into(), "HTTP/3 · QUIC");
     let snapshot = Snapshot {
         opened: 3,
         totals: CounterSnapshot {

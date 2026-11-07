@@ -5,12 +5,11 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+bytes = "1.12.1"
 clap = { version = "4.6.7", features = ["derive"] }
 masque-core = { version = "0.1.0", path = "../../crates/masque-core" }
+masque-h2 = { version = "0.1.0", path = "../../crates/masque-h2" }
 masque-h3 = { version = "0.1.0", path = "../../crates/masque-h3" }
 ratatui = "0.30.2"
 rustls = { version = "0.23.46", default-features = false, features = ["ring", "std"] }
 tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread", "net", "sync"] }
-
-[dev-dependencies]
-masque-core = { path = "../../crates/masque-core" }

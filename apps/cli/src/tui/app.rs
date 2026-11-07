@@ -12,6 +12,7 @@ const HISTORY_CAPACITY: usize = 240;
 pub struct App {
     pub mode: &'static str,
     pub address: String,
+    pub transport: &'static str,
     pub snapshot: Snapshot,
     pub log: VecDeque<Event>,
     pub up: History,
@@ -19,10 +20,11 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(mode: &'static str, address: String) -> Self {
+    pub fn new(mode: &'static str, address: String, transport: &'static str) -> Self {
         Self {
             mode,
             address,
+            transport,
             snapshot: Snapshot::default(),
             log: VecDeque::new(),
             up: History::new(HISTORY_CAPACITY),

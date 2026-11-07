@@ -42,6 +42,27 @@ The server writes a self-signed certificate to `minimasque-cert.der`, and the cl
 | `--transport h3` / `h2` | Force one transport |
 | `--template <uri>` | Use another proxy's URI template, e.g. `https://proxy:4433/masque?h={target_host}&p={target_port}` |
 
+## Platforms
+
+| Platform | Status | Evidence |
+|---|---|---|
+| Linux | CLI + TUI, proxy and client | [server dashboard](docs/assets/linux-server.png), recorded in Docker with VHS |
+| macOS | CLI + TUI, proxy and client | [server dashboard](docs/assets/macos-server.png), recorded natively with VHS |
+| Windows | CLI cross-compiles (`x86_64-pc-windows-gnu`) | builds a PE32+ console `minimasque.exe`; not yet run on Windows |
+| Android | Jetpack Compose app on `masque-ffi` | [screenshot](docs/assets/android.png) from the Pixel 8 emulator |
+| iOS | Swift bindings generated | app not built yet |
+
+<table>
+  <tr>
+    <td><img src="docs/assets/linux-server.png" alt="minimasque server dashboard on Linux" width="440"></td>
+    <td><img src="docs/assets/macos-server.png" alt="minimasque server dashboard on macOS" width="440"></td>
+  </tr>
+  <tr>
+    <td align="center">Linux</td>
+    <td align="center">macOS</td>
+  </tr>
+</table>
+
 ## Android
 
 <img src="docs/assets/android.png" alt="MiniMASQUE Android app resolving example.com through an HTTP/3 CONNECT-UDP tunnel" width="300" align="right">
@@ -154,7 +175,8 @@ Not implemented yet: `{?target_host,target_port}` form-style template expression
 cargo test --workspace            # unit, end-to-end, TUI render and FFI tests
 ./interop/run.sh                  # cross-implementation matrix (Docker)
 ./interop/apple/run.sh            # Apple Network.framework relay (macOS)
-./docs/record-demo.sh             # re-record docs/assets/demo.gif with VHS (Docker)
+./docs/record-demo.sh             # re-record the GIF and Linux screenshot with VHS (Docker)
+./docs/record-macos.sh            # re-record the macOS screenshot with VHS (brew install vhs)
 ```
 
 - End-to-end tests run real QUIC and TLS on loopback: UDP relay both ways, multiplexed tunnels, refused requests, protocol events, HTTP/2 capsule relay, and automatic HTTP/2 fallback when QUIC is unreachable.

@@ -1,6 +1,14 @@
 use crate::{Error, percent};
 
 pub fn expand(template: &str, vars: &[(&str, &str)]) -> Result<String, Error> {
+    expand_with(template, vars, percent::encode)
+}
+
+pub fn expand_with(
+    template: &str,
+    vars: &[(&str, &str)],
+    encode: fn(&str) -> String,
+) -> Result<String, Error> {
     let mut out = String::with_capacity(template.len());
     let mut rest = template;
     while let Some(open) = rest.find('{') {
@@ -11,7 +19,7 @@ pub fn expand(template: &str, vars: &[(&str, &str)]) -> Result<String, Error> {
             .iter()
             .find(|(var, _)| *var == name)
             .ok_or(Error::InvalidTemplate)?;
-        out.push_str(&percent::encode(value));
+        out.push_str(&encode(value));
         rest = &rest[close + 1..];
     }
     out.push_str(rest);

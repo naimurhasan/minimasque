@@ -96,6 +96,13 @@ impl Connected {
         }
     }
 
+    pub fn into_h3(self) -> Result<masque_h3::client::Client, Error> {
+        match self {
+            Self::H3(client) => Ok(client),
+            Self::H2(_) => Err("CONNECT-IP needs HTTP/3".into()),
+        }
+    }
+
     pub fn migrator(&self) -> Option<Migrator> {
         match self {
             Self::H3(client) => Some(client.migrator()),

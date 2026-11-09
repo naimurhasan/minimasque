@@ -1,18 +1,14 @@
 use masque_client::forward;
 use masque_client::transport::{ConnectOptions, Connected};
 use masque_h3::Error;
-use rustls::RootCertStore;
-use rustls::pki_types::CertificateDer;
 use tokio::net::UdpSocket;
 
 use crate::cli::ClientArgs;
+use crate::trust;
 use crate::tui::{self, App, Feed};
 
 pub async fn run(args: ClientArgs) -> Result<(), Error> {
-    let mut roots = RootCertStore::empty();
-    let ca = std::fs::read(&args.ca)
-        .map_err(|err| format!("cannot read --ca {}: {err}", args.ca.display()))?;
-    roots.add(CertificateDer::from(ca))?;
+    let roots = trust::roots(&args.ca)?;
     let options = ConnectOptions {
         proxy: args.proxy,
         name: args.name.clone(),

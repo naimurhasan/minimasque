@@ -1,4 +1,6 @@
+use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::str::FromStr;
 
 use crate::{Error, varint};
 
@@ -26,6 +28,26 @@ pub struct Range {
     pub start: IpAddr,
     pub end: IpAddr,
     pub protocol: u8,
+}
+
+impl FromStr for Prefix {
+    type Err = Error;
+
+    fn from_str(input: &str) -> Result<Self, Error> {
+        let (addr, len) = input.split_once('/').ok_or(Error::InvalidTarget)?;
+        let addr: IpAddr = addr.parse().map_err(|_| Error::InvalidTarget)?;
+        let len: u8 = len.parse().map_err(|_| Error::InvalidTarget)?;
+        if len > max_len(addr) {
+            return Err(Error::InvalidTarget);
+        }
+        Ok(Self { addr, len })
+    }
+}
+
+impl fmt::Display for Prefix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}/{}", self.addr, self.len)
+    }
 }
 
 fn max_len(addr: IpAddr) -> u8 {

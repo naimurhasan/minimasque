@@ -10,6 +10,7 @@ masque-client = { version = "0.1.0", path = "../../crates/masque-client" }
 masque-core = { version = "0.1.0", path = "../../crates/masque-core" }
 masque-h2 = { version = "0.1.0", path = "../../crates/masque-h2" }
 masque-h3 = { version = "0.1.0", path = "../../crates/masque-h3" }
+masque-tun = { version = "0.1.0", path = "../../crates/masque-tun" }
 ratatui = "0.30.2"
 rustls = { version = "0.23.46", default-features = false, features = ["ring", "std"] }
 tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread", "net", "sync"] }

@@ -2,13 +2,14 @@ use std::process::ExitCode;
 
 use clap::Parser;
 use minimasque::cli::{Cli, Command};
-use minimasque::{client, server};
+use minimasque::{client, ip, server};
 
 #[tokio::main]
 async fn main() -> ExitCode {
     let result = match Cli::parse().command {
         Command::Server(args) => server::run(args).await,
         Command::Client(args) => client::run(args).await,
+        Command::Ip(args) => ip::run(args).await,
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,

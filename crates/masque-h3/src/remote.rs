@@ -28,7 +28,7 @@ impl fmt::Display for Remote {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Udp(target) => write!(f, "{}:{}", target.host, target.port),
-            Self::Ip(prefix) => write!(f, "{}/{}", prefix.addr, prefix.len),
+            Self::Ip(prefix) => prefix.fmt(f),
         }
     }
 }

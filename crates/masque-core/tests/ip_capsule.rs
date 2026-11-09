@@ -115,3 +115,20 @@ fn rejects_unordered_or_invalid_routes() {
     ];
     assert_eq!(decode_routes(&overlapping), Err(Error::InvalidCapsule));
 }
+
+#[test]
+fn parses_and_prints_prefixes() {
+    let prefix: Prefix = "10.89.0.0/24".parse().unwrap();
+    assert_eq!(
+        prefix,
+        Prefix {
+            addr: ip("10.89.0.0"),
+            len: 24
+        }
+    );
+    assert_eq!(prefix.to_string(), "10.89.0.0/24");
+    assert_eq!("2001:db8::/32".parse::<Prefix>().unwrap().len, 32);
+    for bad in ["10.0.0.0", "10.0.0.0/33", "nope/8", "::/129"] {
+        assert_eq!(bad.parse::<Prefix>(), Err(Error::InvalidTarget), "{bad}");
+    }
+}

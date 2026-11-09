@@ -5,7 +5,10 @@ use h3::server::RequestResolver;
 use http::StatusCode;
 use quinn::{Endpoint, Incoming};
 
+use crate::gateway::Gateway;
+use crate::ip_tunnel::IpTunnel;
 use crate::migrate;
+use crate::remote::Remote;
 use crate::router::{self, Router};
 use crate::stats::Stats;
 use crate::tunnel::Tunnel;
@@ -14,14 +17,29 @@ use crate::{Error, event, request, udp};
 type Resolver = RequestResolver<h3_quinn::Connection, Bytes>;
 
 pub async fn serve(endpoint: Endpoint, template: Arc<str>, stats: Arc<Stats>) {
+    serve_with(endpoint, template, None, stats).await;
+}
+
+pub async fn serve_with(
+    endpoint: Endpoint,
+    template: Arc<str>,
+    gateway: Option<Arc<Gateway>>,
+    stats: Arc<Stats>,
+) {
     while let Some(incoming) = endpoint.accept().await {
-        tokio::spawn(connection(incoming, template.clone(), stats.clone()));
+        tokio::spawn(connection(
+            incoming,
+            template.clone(),
+            gateway.clone(),
+            stats.clone(),
+        ));
     }
 }
 
 async fn connection(
     incoming: Incoming,
     template: Arc<str>,
+    gateway: Option<Arc<Gateway>>,
     stats: Arc<Stats>,
 ) -> Result<(), Error> {
     let quic = incoming.await?;
@@ -39,6 +57,7 @@ async fn connection(
             quic.clone(),
             router.clone(),
             template.clone(),
+            gateway.clone(),
             stats.clone(),
         ));
     }
@@ -52,11 +71,18 @@ async fn handle(
     quic: quinn::Connection,
     router: Arc<Router>,
     template: Arc<str>,
+    gateway: Option<Arc<Gateway>>,
     stats: Arc<Stats>,
 ) -> Result<(), Error> {
     let (req, mut stream) = resolver.resolve_request().await?;
     let stream_id = stream.id().into_inner();
     stats.emit(event::request(stream_id, &req, request::protocol(&req)));
+    if request::is_connect_ip(&req) {
+        return match gateway {
+            Some(gateway) => ip(req, stream, quic, router, gateway, stats).await,
+            None => reject(stream, &stats, StatusCode::NOT_IMPLEMENTED).await,
+        };
+    }
     let target = match request::validate(&req, &template) {
         Ok(target) => target,
         Err(status) => return reject(stream, &stats, status).await,
@@ -75,6 +101,37 @@ async fn handle(
         tracked,
     }
     .relay(inbound, &mut stream)
+    .await
+}
+
+async fn ip(
+    req: http::Request<()>,
+    mut stream: Stream,
+    quic: quinn::Connection,
+    router: Arc<Router>,
+    gateway: Arc<Gateway>,
+    stats: Arc<Stats>,
+) -> Result<(), Error> {
+    if let Err(status) = request::validate_ip(&req, &gateway.template) {
+        return reject(stream, &stats, status).await;
+    }
+    let Some((lease, net_in)) = gateway.lease() else {
+        return reject(stream, &stats, StatusCode::SERVICE_UNAVAILABLE).await;
+    };
+    let stream_id = stream.id().into_inner();
+    let tracked = stats.track(stream_id, Remote::Ip(lease.prefix()));
+    let quic_in = router.register(stream_id);
+    respond(&mut stream, &stats, StatusCode::OK).await?;
+    IpTunnel {
+        quic,
+        router,
+        stream_id,
+        gateway,
+        lease,
+        tracked,
+        stats,
+    }
+    .relay(quic_in, net_in, &mut stream)
     .await
 }
 

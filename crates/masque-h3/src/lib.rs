@@ -1,10 +1,15 @@
+pub mod capsules;
 pub mod client;
 pub mod counters;
 pub mod describe;
 pub mod endpoint;
 pub mod error;
 pub mod event;
+pub mod gateway;
+pub mod ip_session;
+pub mod ip_tunnel;
 pub mod migrate;
+pub mod remote;
 pub mod request;
 pub mod router;
 pub mod server;

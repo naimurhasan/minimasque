@@ -5,11 +5,14 @@ use bytes::Bytes;
 use h3::client::{RequestStream, SendRequest};
 use h3::ext::Protocol;
 use http::{Method, Request};
+use masque_core::connect_ip::{self, Scope};
 use masque_core::{Target, connect_udp};
 use quinn::Endpoint;
 use tokio::sync::mpsc::Receiver;
 
+use crate::ip_session::{self, IpSession};
 use crate::migrate::Migrator;
+use crate::remote::Remote;
 use crate::router::{self, Router};
 use crate::stats::{Stats, Tracked};
 use crate::{Error, event, request, tunnel};
@@ -33,14 +36,25 @@ pub struct UdpTunnel {
     _stream: Stream,
 }
 
-pub fn connect_request(template: &str, target: &Target) -> Result<Request<()>, Error> {
+fn extended_connect(uri: String, protocol: Protocol) -> Result<Request<()>, Error> {
     let mut req = Request::builder()
         .method(Method::CONNECT)
-        .uri(connect_udp::expand(template, target)?)
+        .uri(uri)
         .header(request::CAPSULE_PROTOCOL, "?1")
         .body(())?;
-    req.extensions_mut().insert(Protocol::CONNECT_UDP);
+    req.extensions_mut().insert(protocol);
     Ok(req)
+}
+
+pub fn connect_request(template: &str, target: &Target) -> Result<Request<()>, Error> {
+    extended_connect(
+        connect_udp::expand(template, target)?,
+        Protocol::CONNECT_UDP,
+    )
+}
+
+pub fn connect_ip_request(template: &str, scope: &Scope) -> Result<Request<()>, Error> {
+    extended_connect(connect_ip::expand(template, scope)?, Protocol::CONNECT_IP)
 }
 
 impl Client {
@@ -69,6 +83,37 @@ impl Client {
 
     pub fn migrator(&self) -> Migrator {
         Migrator::new(self.endpoint.clone(), self.stats.clone())
+    }
+
+    async fn request(&self, req: Request<()>) -> Result<(Stream, u64), Error> {
+        let mut stream = self.send.clone().send_request(req.clone()).await?;
+        let stream_id = stream.id().into_inner();
+        self.stats
+            .emit(event::request(stream_id, &req, request::protocol(&req)));
+        let resp = stream.recv_response().await?;
+        self.stats.emit(event::response(stream_id, &resp));
+        let status = resp.status();
+        if !status.is_success() {
+            return Err(format!("proxy refused tunnel: {status}").into());
+        }
+        Ok((stream, stream_id))
+    }
+
+    pub async fn open_ip(&self, template: &str, scope: &Scope) -> Result<IpSession, Error> {
+        let (mut stream, stream_id) = self.request(connect_ip_request(template, scope)?).await?;
+        let (addresses, routes) =
+            ip_session::configuration(&mut stream, &self.stats, stream_id).await?;
+        let prefix = addresses.first().ok_or("proxy assigned no address")?.prefix;
+        Ok(IpSession {
+            addresses,
+            routes,
+            quic: self.quic.clone(),
+            router: self.router.clone(),
+            stream_id,
+            inbound: self.router.register(stream_id),
+            tracked: self.stats.track(stream_id, Remote::Ip(prefix)),
+            _stream: stream,
+        })
     }
 
     pub async fn open(&self, template: &str, target: &Target) -> Result<UdpTunnel, Error> {

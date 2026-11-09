@@ -1,7 +1,9 @@
 use std::net::SocketAddr;
 
 use http::{HeaderMap, Request, Response};
-use masque_core::Target;
+use masque_core::ip_capsule::{Address, Range};
+
+use crate::remote::Remote;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Event {
@@ -21,10 +23,18 @@ pub enum Event {
     Opened {
         tunnel_id: u64,
         stream_id: u64,
-        target: Target,
+        target: Remote,
     },
     Closed {
         tunnel_id: u64,
+    },
+    AddressAssign {
+        stream_id: u64,
+        addresses: Vec<Address>,
+    },
+    RouteAdvertisement {
+        stream_id: u64,
+        routes: Vec<Range>,
     },
     Migrated {
         from: SocketAddr,

@@ -19,7 +19,7 @@ pub fn tunnels(app: &App) -> Table<'_> {
         let c = &tunnel.counters;
         Row::new([
             tunnel.id.to_string(),
-            format!("{}:{}", tunnel.target.host, tunnel.target.port),
+            tunnel.target.to_string(),
             format::duration(tunnel.age),
             format::bytes(c.bytes_up),
             format::bytes(c.bytes_down),

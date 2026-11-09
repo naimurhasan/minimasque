@@ -6,3 +6,7 @@ members = ["apps/cli", "crates/*"]
 edition = "2024"
 license = "MIT OR Apache-2.0"
 version = "0.1.0"
+
+[patch.crates-io]
+h3 = { git = "https://github.com/hyperium/h3", rev = "43745ad87e95b0c035ac9c547aad467303213425" }
+h3-quinn = { git = "https://github.com/hyperium/h3", rev = "43745ad87e95b0c035ac9c547aad467303213425" }

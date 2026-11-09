@@ -33,8 +33,15 @@ fn counts_per_tunnel_and_totals() {
             dropped: 1
         }
     );
-    let ports: Vec<_> = snapshot.tunnels.iter().map(|t| t.target.port).collect();
-    assert_eq!(ports, [53, 443]);
+    let targets: Vec<_> = snapshot
+        .tunnels
+        .iter()
+        .map(|t| t.target.to_string())
+        .collect();
+    assert_eq!(
+        targets,
+        [target(53), target(443)].map(|t| format!("{}:{}", t.host, t.port))
+    );
     assert_eq!(snapshot.tunnels[0].counters.bytes_down, 100);
 }
 

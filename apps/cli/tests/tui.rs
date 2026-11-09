@@ -111,7 +111,8 @@ fn renders_dashboard() {
             target: masque_core::Target {
                 host: "1.1.1.1".into(),
                 port: 53,
-            },
+            }
+            .into(),
             age: Duration::from_secs(65),
             counters: CounterSnapshot {
                 packets_up: 4,
@@ -173,7 +174,8 @@ fn describes_protocol_events() {
         target: masque_core::Target {
             host: "1.1.1.1".into(),
             port: 53,
-        },
+        }
+        .into(),
     };
     assert_eq!(
         inspect_lines(&opened),
@@ -238,4 +240,38 @@ fn describes_wildcard_migration_by_port() {
         to: "0.0.0.0:6000".parse().unwrap(),
     };
     assert_eq!(inspect_lines(&event)[0], "◆ path migrated *:5000 → *:6000");
+}
+
+#[test]
+fn describes_connect_ip_capsules() {
+    use masque_core::ip_capsule::{Address, Prefix, Range};
+    let assign = Event::AddressAssign {
+        stream_id: 0,
+        addresses: vec![Address {
+            request_id: 0,
+            prefix: Prefix {
+                addr: "10.89.0.2".parse().unwrap(),
+                len: 32,
+            },
+        }],
+    };
+    let routes = Event::RouteAdvertisement {
+        stream_id: 0,
+        routes: vec![Range {
+            start: "0.0.0.0".parse().unwrap(),
+            end: "255.255.255.255".parse().unwrap(),
+            protocol: 0,
+        }],
+    };
+    assert_eq!(
+        inspect_lines(&assign),
+        ["◇ stream 0  ADDRESS_ASSIGN", "    10.89.0.2/32 · request 0"]
+    );
+    assert_eq!(
+        inspect_lines(&routes),
+        [
+            "◇ stream 0  ROUTE_ADVERTISEMENT",
+            "    0.0.0.0 – 255.255.255.255 · any protocol"
+        ]
+    );
 }

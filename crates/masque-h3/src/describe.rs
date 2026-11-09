@@ -2,6 +2,15 @@ use std::net::SocketAddr;
 
 use crate::event::Event;
 
+fn protocol(number: u8) -> String {
+    match number {
+        0 => "any protocol".into(),
+        6 => "tcp".into(),
+        17 => "udp".into(),
+        other => format!("protocol {other}"),
+    }
+}
+
 fn address(addr: &SocketAddr) -> String {
     match addr.ip().is_unspecified() {
         true => format!("*:{}", addr.port()),
@@ -45,9 +54,32 @@ pub fn lines(event: &Event) -> Vec<String> {
             stream_id,
             target,
         } => vec![format!(
-            "● tunnel {tunnel_id} open · stream {stream_id} ⇄ {}:{} · udp ctx 0",
-            target.host, target.port
+            "● tunnel {tunnel_id} open · stream {stream_id} ⇄ {target} · {} ctx 0",
+            target.kind()
         )],
+        Event::AddressAssign {
+            stream_id,
+            addresses,
+        } => std::iter::once(format!("◇ stream {stream_id}  ADDRESS_ASSIGN"))
+            .chain(addresses.iter().map(|address| {
+                format!(
+                    "    {}/{} · request {}",
+                    address.prefix.addr, address.prefix.len, address.request_id
+                )
+            }))
+            .collect(),
+        Event::RouteAdvertisement { stream_id, routes } => {
+            std::iter::once(format!("◇ stream {stream_id}  ROUTE_ADVERTISEMENT"))
+                .chain(routes.iter().map(|range| {
+                    format!(
+                        "    {} – {} · {}",
+                        range.start,
+                        range.end,
+                        protocol(range.protocol)
+                    )
+                }))
+                .collect()
+        }
         Event::Closed { tunnel_id } => vec![format!("○ tunnel {tunnel_id} closed")],
         Event::Migrated { from, to } => vec![
             format!("◆ path migrated {} → {}", address(from), address(to)),

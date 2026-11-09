@@ -5,6 +5,7 @@ pub mod datagram;
 pub mod error;
 pub mod h3_datagram;
 pub mod ip_capsule;
+pub mod ip_packet;
 pub mod percent;
 pub mod uri_template;
 pub mod varint;

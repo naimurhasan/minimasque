@@ -3,16 +3,16 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
-use masque_core::Target;
 use tokio::sync::broadcast;
 
 use crate::counters::{CounterSnapshot, Counters};
 use crate::event::Event;
+use crate::remote::Remote;
 
 const EVENT_BACKLOG: usize = 1024;
 
 struct Entry {
-    target: Target,
+    target: Remote,
     opened: Instant,
     counters: Counters,
 }
@@ -44,7 +44,7 @@ pub struct Tracked {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TunnelSnapshot {
     pub id: u64,
-    pub target: Target,
+    pub target: Remote,
     pub age: Duration,
     pub counters: CounterSnapshot,
 }
@@ -65,7 +65,8 @@ impl Stats {
         let _ = self.events.send(event);
     }
 
-    pub fn track(self: &Arc<Self>, stream_id: u64, target: Target) -> Tracked {
+    pub fn track(self: &Arc<Self>, stream_id: u64, target: impl Into<Remote>) -> Tracked {
+        let target = target.into();
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         self.emit(Event::Opened {
             tunnel_id: id,

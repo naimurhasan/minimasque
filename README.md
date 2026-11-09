@@ -1,7 +1,7 @@
 <h1 align="center">MiniMASQUE</h1>
 
 <p align="center">
-  A small, interop-tested MASQUE <b>CONNECT-UDP</b> proxy and client in Rust.<br>
+  A small, interop-tested MASQUE <b>CONNECT-UDP</b> and <b>CONNECT-IP</b> proxy and client in Rust.<br>
   HTTP/3 over QUIC first, HTTP/2 over TCP when UDP is blocked.
 </p>
 
@@ -18,12 +18,13 @@
 
 ## Why this exists
 
-MASQUE (RFC 9298) tunnels UDP inside HTTP. It is what iCloud Private Relay, Cloudflare WARP and other modern privacy proxies are built on. MiniMASQUE is a deliberately small implementation that makes the protocol visible and verifiable:
+MASQUE tunnels UDP (RFC 9298) and whole IP packets (RFC 9484) inside HTTP. It is what iCloud Private Relay, Cloudflare WARP and other modern privacy proxies are built on. MiniMASQUE is a deliberately small implementation that makes the protocol visible and verifiable:
 
 - **Sans-I/O core.** `masque-core` contains the wire formats (varints, capsules, URI templates, datagram framing, request checks) as pure functions with no networking and no HTTP library, so it can sit under any QUIC or HTTP stack.
 - **Interop-tested.** An automated matrix runs every client against every proxy: MiniMASQUE, [masque-go](https://github.com/quic-go/masque-go) and [Google quiche](https://github.com/google/quiche). Apple's own MASQUE client in Network.framework also works with the MiniMASQUE proxy, over both HTTP/3 and HTTP/2.
 - **HTTP/3 with an HTTP/2 fallback.** The same CONNECT-UDP tunnel runs over QUIC datagrams or, when UDP is blocked, over HTTP/2 DATAGRAM capsules. The client picks automatically.
 - **A live protocol inspector.** `--tui` shows throughput, open tunnels and the actual extended CONNECT exchange as it happens.
+- **CONNECT-IP, a real VPN path.** `minimasque ip` gets an address from the proxy, creates a TUN device and routes chosen prefixes through HTTP/3, so ping, DNS and TCP all work through the tunnel.
 - **Visible connection migration.** Press `m` in the client TUI to move QUIC to a new UDP socket mid-session; the tunnel keeps flowing and both ends log the path change.
 - **One core, many platforms.** The CLI runs on Linux, macOS and Windows; `masque-ffi` exposes the client to Kotlin and Swift through UniFFI.
 
@@ -113,6 +114,45 @@ When a phone moves from Wi-Fi to mobile data, its address changes. A TCP-based t
 
 The tunnel, its stream and its counters survive, with nothing dropped. The proxy watches each connection's peer address and logs `◆ path migrated` in its own inspector when it changes. The Android and iOS apps have the same action as a **Migrate path** button (both screenshots above were taken after one). Migration is HTTP/3 only; the HTTP/2 fallback runs over TCP and cannot migrate.
 
+## CONNECT-IP
+
+CONNECT-UDP carries one UDP flow to one `host:port`. CONNECT-IP (RFC 9484) carries whole IP packets, so any protocol works and the operating system routes traffic into it like a VPN.
+
+```sh
+# proxy (Linux, root): serve CONNECT-IP from an address pool through a TUN device, NAT to the internet
+sudo minimasque server --name proxy.example --ip-pool 10.89.0.0/24
+sudo iptables -t nat -A POSTROUTING -s 10.89.0.0/24 -o eth0 -j MASQUERADE
+
+# client (Linux or macOS, root): get an address, route chosen prefixes through the tunnel
+sudo minimasque ip --proxy 203.0.113.7:4433 --name proxy.example --ca minimasque-cert.der --route 1.1.1.1/32
+ping 1.1.1.1 && curl https://1.1.1.1/cdn-cgi/trace
+```
+
+```mermaid
+sequenceDiagram
+    participant C as Client (TUN)
+    participant P as Proxy (TUN + NAT)
+    participant N as Network
+    C->>P: CONNECT :protocol=connect-ip<br/>:path=/.well-known/masque/ip/*/*/
+    P-->>C: 200, capsule-protocol: ?1
+    P-->>C: ADDRESS_ASSIGN 10.89.0.2/32
+    P-->>C: ROUTE_ADVERTISEMENT 0.0.0.0 – 255.255.255.255
+    C->>P: DATAGRAM [context 0][IPv4 packet from 10.89.0.2]
+    P->>N: packet via TUN, NAT
+    N-->>P: reply
+    P-->>C: DATAGRAM [context 0][IPv4 packet to 10.89.0.2]
+```
+
+| Tested | Result |
+|---|---|
+| Linux client → Linux proxy ([`demo/connect-ip/run.sh`](demo/connect-ip/run.sh), Docker) | ping, DNS and HTTPS to `1.1.1.1` ✅ |
+| macOS client (`utun`) → Linux proxy in Docker Desktop | ping and HTTP to a private container network ✅ |
+
+- The proxy assigns one address per session, drops packets whose source is not that address, and answers ADDRESS_REQUEST.
+- Only the `--route` prefixes go through the tunnel, so the client's own QUIC connection to the proxy never loops back into it. On a Mac running the proxy in Docker Desktop, route private container subnets rather than internet addresses: Docker Desktop sends container traffic out through the Mac's own routing table, which would feed it back into the tunnel.
+- Veth and Docker networking can hand the proxy packets with offloaded (unfinished) TCP/UDP checksums; the proxy recomputes them before forwarding to the client.
+- CONNECT-IP is HTTP/3 only, IPv4 only for TUN addresses, and not yet in the mobile apps (Android `VpnService`, an iOS Network Extension). The `h3` crate's released version lacks `:protocol: connect-ip`, so h3 and h3-quinn are pinned to a git commit until the next release.
+
 ## How it works
 
 ```mermaid
@@ -148,7 +188,8 @@ flowchart TD
     h3["masque-h3<br/>quinn + h3: proxy, client, stats, events"]
     h2["masque-h2<br/>h2 + rustls: proxy, client"]
     client["masque-client<br/>transport choice + UDP forwarding"]
-    cli["minimasque CLI<br/>server, client, TUI"]
+    tun["masque-tun<br/>TUN devices, routes, packet bridges"]
+    cli["minimasque CLI<br/>server, client, ip, TUI"]
     ffi["masque-ffi<br/>UniFFI: Kotlin + Swift"]
     android["Android app<br/>Jetpack Compose"]
     ios["iOS app<br/>SwiftUI"]
@@ -157,6 +198,7 @@ flowchart TD
     h3 --> client
     h2 --> client
     client --> cli
+    h3 --> tun --> cli
     client --> ffi
     ffi --> android
     ffi --> ios
@@ -164,10 +206,11 @@ flowchart TD
 
 | Crate | Contents |
 |---|---|
-| [`masque-core`](crates/masque-core) | QUIC varints, capsules, CONNECT-UDP URI templates and targets, context-ID datagrams, HTTP/3 datagram framing |
-| [`masque-h3`](crates/masque-h3) | HTTP/3 proxy and client on quinn and h3, per-tunnel stats, protocol events |
+| [`masque-core`](crates/masque-core) | QUIC varints, capsules, CONNECT-UDP and CONNECT-IP URI templates, address and route capsules, IP header and checksum helpers, context-ID datagrams, HTTP/3 datagram framing |
+| [`masque-h3`](crates/masque-h3) | HTTP/3 proxy and client on quinn and h3 (CONNECT-UDP and CONNECT-IP with an address-pool gateway), per-tunnel stats, protocol events |
 | [`masque-h2`](crates/masque-h2) | HTTP/2 extended CONNECT proxy and client with a streaming capsule reader |
 | [`masque-client`](crates/masque-client) | `auto` / `h3` / `h2` transport selection and local UDP forwarding |
+| [`masque-tun`](crates/masque-tun) | TUN devices (tun-rs), route setup on Linux and macOS, proxy and client packet bridges |
 | [`masque-ffi`](crates/masque-ffi) | `Forwarder` object for Android and iOS through UniFFI |
 | [`minimasque`](apps/cli) | The CLI and the ratatui dashboard |
 
@@ -203,8 +246,9 @@ Apple's request also carries `proxy-quic-forwarding: ?1` (QUIC-aware proxying, a
 | RFC 9298 | CONNECT-UDP request validation, URI template expansion and matching (path and query forms), context ID 0 |
 | RFC 9220 | Extended CONNECT over HTTP/3 |
 | RFC 8441 | Extended CONNECT over HTTP/2 (fallback transport) |
+| RFC 9484 | CONNECT-IP over HTTP/3: `{target}`/`{ipproto}` templates with `*` wildcards, ADDRESS_ASSIGN, ADDRESS_REQUEST, ROUTE_ADVERTISEMENT (ordering checked), full IP packets in context ID 0 |
 
-Not implemented yet: `{?target_host,target_port}` form-style template expressions, Proxy-Status responses, context ID registration for extensions, and CONNECT-IP (RFC 9484).
+Not implemented yet: `{?target_host,target_port}` form-style template expressions, Proxy-Status responses, context ID registration for extensions, CONNECT-IP over HTTP/2, IPv6 TUN addresses, and CONNECT-IP scope enforcement (the proxy accepts `target`/`ipproto` but always advertises a full IPv4 route).
 
 ## Testing
 
@@ -212,12 +256,13 @@ Not implemented yet: `{?target_host,target_port}` form-style template expression
 cargo test --workspace            # unit, end-to-end, TUI render and FFI tests
 ./interop/run.sh                  # cross-implementation matrix (Docker)
 ./interop/apple/run.sh            # Apple Network.framework relay (macOS)
+./demo/connect-ip/run.sh          # CONNECT-IP: ping, DNS and HTTPS through a TUN tunnel (Docker)
 ./docs/record-demo.sh             # re-record the GIF and Linux screenshot with VHS (Docker)
 ./docs/record-macos.sh            # re-record the macOS screenshot with VHS (brew install vhs)
 vhs docs/migration.tape           # re-record the migration GIF (minimasque on PATH)
 ```
 
-- End-to-end tests run real QUIC and TLS on loopback: UDP relay both ways, multiplexed tunnels, refused requests, protocol events, connection migration, HTTP/2 capsule relay, and automatic HTTP/2 fallback when QUIC is unreachable.
+- End-to-end tests run real QUIC and TLS on loopback: UDP relay both ways, multiplexed tunnels, refused requests, protocol events, connection migration, CONNECT-IP address assignment and packet relay with spoof checks, HTTP/2 capsule relay, and automatic HTTP/2 fallback when QUIC is unreachable.
 - The dashboard is rendered into ratatui's `TestBackend` and checked as text.
 - CI runs `rustfmt`, `clippy -D warnings` and the tests on Linux, macOS and Windows.
 
@@ -232,7 +277,8 @@ vhs docs/migration.tape           # re-record the migration GIF (minimasque on P
 - [x] Interop with Apple's built-in MASQUE client (Network.framework relays)
 - [x] iOS app (SwiftUI on `masque-ffi`)
 - [x] Connection migration demo (rebind mid-session without dropping the tunnel)
-- [ ] CONNECT-IP
+- [x] CONNECT-IP over HTTP/3 with TUN on Linux and macOS
+- [ ] CONNECT-IP in the mobile apps (Android `VpnService`, iOS Network Extension)
 
 ## License
 
